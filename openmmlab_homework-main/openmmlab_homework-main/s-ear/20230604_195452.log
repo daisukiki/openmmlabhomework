@@ -1,0 +1,1919 @@
+2023/06/04 19:54:55 - mmengine - INFO - 
+------------------------------------------------------------
+System environment:
+    sys.platform: linux
+    Python: 3.8.10 (default, Mar 15 2022, 12:22:08) [GCC 9.4.0]
+    CUDA available: True
+    numpy_random_seed: 21
+    GPU 0: NVIDIA GeForce RTX 3060
+    CUDA_HOME: /usr/local/cuda
+    NVCC: Cuda compilation tools, release 11.3, V11.3.109
+    GCC: x86_64-linux-gnu-gcc (Ubuntu 9.3.0-17ubuntu1~20.04) 9.3.0
+    PyTorch: 1.10.0+cu113
+    PyTorch compiling details: PyTorch built with:
+  - GCC 7.3
+  - C++ Version: 201402
+  - Intel(R) Math Kernel Library Version 2020.0.0 Product Build 20191122 for Intel(R) 64 architecture applications
+  - Intel(R) MKL-DNN v2.2.3 (Git Hash 7336ca9f055cf1bfa13efb658fe15dc9b41f0740)
+  - OpenMP 201511 (a.k.a. OpenMP 4.5)
+  - LAPACK is enabled (usually provided by MKL)
+  - NNPACK is enabled
+  - CPU capability usage: AVX2
+  - CUDA Runtime 11.3
+  - NVCC architecture flags: -gencode;arch=compute_37,code=sm_37;-gencode;arch=compute_50,code=sm_50;-gencode;arch=compute_60,code=sm_60;-gencode;arch=compute_70,code=sm_70;-gencode;arch=compute_75,code=sm_75;-gencode;arch=compute_80,code=sm_80;-gencode;arch=compute_86,code=sm_86
+  - CuDNN 8.2
+  - Magma 2.5.2
+  - Build settings: BLAS_INFO=mkl, BUILD_TYPE=Release, CUDA_VERSION=11.3, CUDNN_VERSION=8.2.0, CXX_COMPILER=/opt/rh/devtoolset-7/root/usr/bin/c++, CXX_FLAGS= -Wno-deprecated -fvisibility-inlines-hidden -DUSE_PTHREADPOOL -fopenmp -DNDEBUG -DUSE_KINETO -DUSE_FBGEMM -DUSE_QNNPACK -DUSE_PYTORCH_QNNPACK -DUSE_XNNPACK -DSYMBOLICATE_MOBILE_DEBUG_HANDLE -DEDGE_PROFILER_USE_KINETO -O2 -fPIC -Wno-narrowing -Wall -Wextra -Werror=return-type -Wno-missing-field-initializers -Wno-type-limits -Wno-array-bounds -Wno-unknown-pragmas -Wno-sign-compare -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function -Wno-unused-result -Wno-unused-local-typedefs -Wno-strict-overflow -Wno-strict-aliasing -Wno-error=deprecated-declarations -Wno-stringop-overflow -Wno-psabi -Wno-error=pedantic -Wno-error=redundant-decls -Wno-error=old-style-cast -fdiagnostics-color=always -faligned-new -Wno-unused-but-set-variable -Wno-maybe-uninitialized -fno-math-errno -fno-trapping-math -Werror=format -Wno-stringop-overflow, LAPACK_INFO=mkl, PERF_WITH_AVX=1, PERF_WITH_AVX2=1, PERF_WITH_AVX512=1, TORCH_VERSION=1.10.0, USE_CUDA=ON, USE_CUDNN=ON, USE_EXCEPTION_PTR=1, USE_GFLAGS=OFF, USE_GLOG=OFF, USE_MKL=ON, USE_MKLDNN=ON, USE_MPI=OFF, USE_NCCL=ON, USE_NNPACK=ON, USE_OPENMP=ON, 
+
+    TorchVision: 0.11.0+cu113
+    OpenCV: 4.7.0
+    MMEngine: 0.7.3
+
+Runtime environment:
+    cudnn_benchmark: False
+    mp_cfg: {'mp_start_method': 'fork', 'opencv_num_threads': 0}
+    dist_cfg: {'backend': 'nccl'}
+    seed: 21
+    Distributed launcher: none
+    Distributed training: False
+    GPU number: 1
+------------------------------------------------------------
+
+2023/06/04 19:55:02 - mmengine - INFO - Config:
+default_scope = 'mmpose'
+default_hooks = dict(
+    timer=dict(type='IterTimerHook', _scope_='mmpose'),
+    logger=dict(type='LoggerHook', interval=1, _scope_='mmpose'),
+    param_scheduler=dict(type='ParamSchedulerHook', _scope_='mmpose'),
+    checkpoint=dict(
+        type='CheckpointHook',
+        interval=10,
+        _scope_='mmpose',
+        save_best='PCK',
+        rule='greater',
+        max_keep_ckpts=2),
+    sampler_seed=dict(type='DistSamplerSeedHook', _scope_='mmpose'),
+    visualization=dict(
+        type='PoseVisualizationHook', enable=False, _scope_='mmpose'))
+custom_hooks = [
+    dict(
+        type='EMAHook',
+        ema_type='ExpMomentumEMA',
+        momentum=0.0002,
+        update_buffers=True,
+        priority=49),
+    dict(
+        type='mmdet.PipelineSwitchHook',
+        switch_epoch=120,
+        switch_pipeline=[
+            dict(type='LoadImage', backend_args=dict(backend='local')),
+            dict(type='GetBBoxCenterScale'),
+            dict(type='RandomFlip', direction='horizontal'),
+            dict(type='RandomHalfBody'),
+            dict(
+                type='RandomBBoxTransform',
+                shift_factor=0.0,
+                scale_factor=[0.75, 1.25],
+                rotate_factor=60),
+            dict(type='TopdownAffine', input_size=(256, 256)),
+            dict(type='mmdet.YOLOXHSVRandomAug'),
+            dict(
+                type='Albumentation',
+                transforms=[
+                    dict(type='Blur', p=0.1),
+                    dict(type='MedianBlur', p=0.1),
+                    dict(
+                        type='CoarseDropout',
+                        max_holes=1,
+                        max_height=0.4,
+                        max_width=0.4,
+                        min_holes=1,
+                        min_height=0.2,
+                        min_width=0.2,
+                        p=0.5)
+                ]),
+            dict(
+                type='GenerateTarget',
+                encoder=dict(
+                    type='SimCCLabel',
+                    input_size=(256, 256),
+                    sigma=(12, 12),
+                    simcc_split_ratio=2.0,
+                    normalize=False,
+                    use_dark=False)),
+            dict(type='PackPoseInputs')
+        ])
+]
+env_cfg = dict(
+    cudnn_benchmark=False,
+    mp_cfg=dict(mp_start_method='fork', opencv_num_threads=0),
+    dist_cfg=dict(backend='nccl'))
+vis_backends = [dict(type='LocalVisBackend', _scope_='mmpose')]
+visualizer = dict(
+    type='PoseLocalVisualizer',
+    vis_backends=[dict(type='LocalVisBackend')],
+    name='visualizer',
+    _scope_='mmpose')
+log_processor = dict(
+    type='LogProcessor',
+    window_size=50,
+    by_epoch=True,
+    num_digits=6,
+    _scope_='mmpose')
+log_level = 'INFO'
+load_from = None
+resume = False
+backend_args = dict(backend='local')
+train_cfg = dict(by_epoch=True, max_epochs=120, val_interval=10)
+val_cfg = dict()
+test_cfg = dict()
+dataset_type = 'CocoDataset'
+data_mode = 'topdown'
+data_root = 'data/Ear210_Keypoint_Dataset_coco/'
+dataset_info = dict(
+    dataset_name='Ear210_Keypoint_Dataset_coco',
+    classes='ear',
+    paper_info=dict(
+        author='Tongji Zihao',
+        title='Triangle Keypoints Detection',
+        container='OpenMMLab',
+        year='2023',
+        homepage='https://space.bilibili.com/1900783'),
+    keypoint_info=dict({
+        0:
+        dict(name='肾上腺', id=0, color=[101, 205, 228], type='', swap=''),
+        1:
+        dict(name='耳尖', id=1, color=[240, 128, 128], type='', swap=''),
+        2:
+        dict(name='胃', id=2, color=[154, 205, 50], type='', swap=''),
+        3:
+        dict(name='眼', id=3, color=[34, 139, 34], type='', swap=''),
+        4:
+        dict(name='口', id=4, color=[139, 0, 0], type='', swap=''),
+        5:
+        dict(name='肝', id=5, color=[255, 165, 0], type='', swap=''),
+        6:
+        dict(name='对屏尖', id=6, color=[255, 0, 255], type='', swap=''),
+        7:
+        dict(name='心', id=7, color=[255, 255, 0], type='', swap=''),
+        8:
+        dict(name='肺', id=8, color=[29, 123, 243], type='', swap=''),
+        9:
+        dict(name='肺2', id=9, color=[0, 255, 255], type='', swap=''),
+        10:
+        dict(name='膀胱', id=10, color=[128, 0, 128], type='', swap=''),
+        11:
+        dict(name='脾', id=11, color=[74, 181, 57], type='', swap=''),
+        12:
+        dict(name='角窝中', id=12, color=[165, 42, 42], type='', swap=''),
+        13:
+        dict(name='神门', id=13, color=[128, 128, 0], type='', swap=''),
+        14:
+        dict(name='肾', id=14, color=[255, 0, 0], type='', swap=''),
+        15:
+        dict(name='耳门', id=15, color=[34, 139, 34], type='', swap=''),
+        16:
+        dict(name='听宫', id=16, color=[255, 129, 0], type='', swap=''),
+        17:
+        dict(name='听会', id=17, color=[70, 130, 180], type='', swap=''),
+        18:
+        dict(name='肩', id=18, color=[63, 103, 165], type='', swap=''),
+        19:
+        dict(name='扁桃体', id=19, color=[66, 77, 229], type='', swap=''),
+        20:
+        dict(name='腰骶椎', id=20, color=[255, 105, 180], type='', swap='')
+    }),
+    skeleton_info=dict({
+        0: dict(link=('眼', '扁桃体'), id=0, color=[100, 150, 200]),
+        1: dict(link=('耳门', '听宫'), id=1, color=[200, 100, 150]),
+        2: dict(link=('听宫', '听会'), id=2, color=[150, 120, 100]),
+        3: dict(link=('耳门', '听会'), id=3, color=[66, 77, 229])
+    }),
+    joint_weights=[
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
+    ],
+    sigmas=[
+        0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025,
+        0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025,
+        0.025
+    ])
+NUM_KEYPOINTS = 21
+max_epochs = 120
+val_interval = 10
+train_batch_size = 64
+val_batch_size = 8
+stage2_num_epochs = 0
+base_lr = 0.004
+randomness = dict(seed=21)
+optim_wrapper = dict(
+    type='OptimWrapper',
+    optimizer=dict(type='AdamW', lr=0.004, weight_decay=0.05),
+    paramwise_cfg=dict(
+        norm_decay_mult=0, bias_decay_mult=0, bypass_duplicate=True))
+param_scheduler = [
+    dict(type='LinearLR', start_factor=1e-05, by_epoch=False, begin=0, end=20),
+    dict(
+        type='CosineAnnealingLR',
+        eta_min=0.0002,
+        begin=60,
+        end=120,
+        T_max=60,
+        by_epoch=True,
+        convert_to_iter_based=True)
+]
+auto_scale_lr = dict(base_batch_size=1024)
+codec = dict(
+    type='SimCCLabel',
+    input_size=(256, 256),
+    sigma=(12, 12),
+    simcc_split_ratio=2.0,
+    normalize=False,
+    use_dark=False)
+model = dict(
+    type='TopdownPoseEstimator',
+    data_preprocessor=dict(
+        type='PoseDataPreprocessor',
+        mean=[123.675, 116.28, 103.53],
+        std=[58.395, 57.12, 57.375],
+        bgr_to_rgb=True),
+    backbone=dict(
+        _scope_='mmdet',
+        type='CSPNeXt',
+        arch='P5',
+        expand_ratio=0.5,
+        deepen_factor=0.33,
+        widen_factor=0.5,
+        out_indices=(4, ),
+        channel_attention=True,
+        norm_cfg=dict(type='SyncBN'),
+        act_cfg=dict(type='SiLU'),
+        init_cfg=dict(
+            type='Pretrained',
+            prefix='backbone.',
+            checkpoint=
+            'https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth'
+        )),
+    head=dict(
+        type='RTMCCHead',
+        in_channels=512,
+        out_channels=21,
+        input_size=(256, 256),
+        in_featuremap_size=(8, 8),
+        simcc_split_ratio=2.0,
+        final_layer_kernel_size=7,
+        gau_cfg=dict(
+            hidden_dims=256,
+            s=128,
+            expansion_factor=2,
+            dropout_rate=0.0,
+            drop_path=0.0,
+            act_fn='SiLU',
+            use_rel_bias=False,
+            pos_enc=False),
+        loss=dict(
+            type='KLDiscretLoss',
+            use_target_weight=True,
+            beta=10.0,
+            label_softmax=True),
+        decoder=dict(
+            type='SimCCLabel',
+            input_size=(256, 256),
+            sigma=(12, 12),
+            simcc_split_ratio=2.0,
+            normalize=False,
+            use_dark=False)),
+    test_cfg=dict(flip_test=True))
+train_pipeline = [
+    dict(type='LoadImage', backend_args=dict(backend='local')),
+    dict(type='GetBBoxCenterScale'),
+    dict(type='RandomFlip', direction='horizontal'),
+    dict(
+        type='RandomBBoxTransform', scale_factor=[0.8, 1.2], rotate_factor=30),
+    dict(type='TopdownAffine', input_size=(256, 256)),
+    dict(type='mmdet.YOLOXHSVRandomAug'),
+    dict(
+        type='Albumentation',
+        transforms=[
+            dict(type='ChannelShuffle', p=0.5),
+            dict(type='CLAHE', p=0.5),
+            dict(type='ColorJitter', p=0.5),
+            dict(
+                type='CoarseDropout',
+                max_holes=4,
+                max_height=0.3,
+                max_width=0.3,
+                min_holes=1,
+                min_height=0.2,
+                min_width=0.2,
+                p=0.5)
+        ]),
+    dict(
+        type='GenerateTarget',
+        encoder=dict(
+            type='SimCCLabel',
+            input_size=(256, 256),
+            sigma=(12, 12),
+            simcc_split_ratio=2.0,
+            normalize=False,
+            use_dark=False)),
+    dict(type='PackPoseInputs')
+]
+val_pipeline = [
+    dict(type='LoadImage', backend_args=dict(backend='local')),
+    dict(type='GetBBoxCenterScale'),
+    dict(type='TopdownAffine', input_size=(256, 256)),
+    dict(type='PackPoseInputs')
+]
+train_pipeline_stage2 = [
+    dict(type='LoadImage', backend_args=dict(backend='local')),
+    dict(type='GetBBoxCenterScale'),
+    dict(type='RandomFlip', direction='horizontal'),
+    dict(type='RandomHalfBody'),
+    dict(
+        type='RandomBBoxTransform',
+        shift_factor=0.0,
+        scale_factor=[0.75, 1.25],
+        rotate_factor=60),
+    dict(type='TopdownAffine', input_size=(256, 256)),
+    dict(type='mmdet.YOLOXHSVRandomAug'),
+    dict(
+        type='Albumentation',
+        transforms=[
+            dict(type='Blur', p=0.1),
+            dict(type='MedianBlur', p=0.1),
+            dict(
+                type='CoarseDropout',
+                max_holes=1,
+                max_height=0.4,
+                max_width=0.4,
+                min_holes=1,
+                min_height=0.2,
+                min_width=0.2,
+                p=0.5)
+        ]),
+    dict(
+        type='GenerateTarget',
+        encoder=dict(
+            type='SimCCLabel',
+            input_size=(256, 256),
+            sigma=(12, 12),
+            simcc_split_ratio=2.0,
+            normalize=False,
+            use_dark=False)),
+    dict(type='PackPoseInputs')
+]
+train_dataloader = dict(
+    batch_size=64,
+    num_workers=1,
+    persistent_workers=True,
+    sampler=dict(type='DefaultSampler', shuffle=True),
+    dataset=dict(
+        type='CocoDataset',
+        data_root='data/Ear210_Keypoint_Dataset_coco/',
+        metainfo=dict(
+            dataset_name='Ear210_Keypoint_Dataset_coco',
+            classes='ear',
+            paper_info=dict(
+                author='Tongji Zihao',
+                title='Triangle Keypoints Detection',
+                container='OpenMMLab',
+                year='2023',
+                homepage='https://space.bilibili.com/1900783'),
+            keypoint_info=dict({
+                0:
+                dict(
+                    name='肾上腺', id=0, color=[101, 205, 228], type='', swap=''),
+                1:
+                dict(name='耳尖', id=1, color=[240, 128, 128], type='', swap=''),
+                2:
+                dict(name='胃', id=2, color=[154, 205, 50], type='', swap=''),
+                3:
+                dict(name='眼', id=3, color=[34, 139, 34], type='', swap=''),
+                4:
+                dict(name='口', id=4, color=[139, 0, 0], type='', swap=''),
+                5:
+                dict(name='肝', id=5, color=[255, 165, 0], type='', swap=''),
+                6:
+                dict(name='对屏尖', id=6, color=[255, 0, 255], type='', swap=''),
+                7:
+                dict(name='心', id=7, color=[255, 255, 0], type='', swap=''),
+                8:
+                dict(name='肺', id=8, color=[29, 123, 243], type='', swap=''),
+                9:
+                dict(name='肺2', id=9, color=[0, 255, 255], type='', swap=''),
+                10:
+                dict(name='膀胱', id=10, color=[128, 0, 128], type='', swap=''),
+                11:
+                dict(name='脾', id=11, color=[74, 181, 57], type='', swap=''),
+                12:
+                dict(name='角窝中', id=12, color=[165, 42, 42], type='', swap=''),
+                13:
+                dict(name='神门', id=13, color=[128, 128, 0], type='', swap=''),
+                14:
+                dict(name='肾', id=14, color=[255, 0, 0], type='', swap=''),
+                15:
+                dict(name='耳门', id=15, color=[34, 139, 34], type='', swap=''),
+                16:
+                dict(name='听宫', id=16, color=[255, 129, 0], type='', swap=''),
+                17:
+                dict(name='听会', id=17, color=[70, 130, 180], type='', swap=''),
+                18:
+                dict(name='肩', id=18, color=[63, 103, 165], type='', swap=''),
+                19:
+                dict(name='扁桃体', id=19, color=[66, 77, 229], type='', swap=''),
+                20:
+                dict(
+                    name='腰骶椎', id=20, color=[255, 105, 180], type='', swap='')
+            }),
+            skeleton_info=dict({
+                0:
+                dict(link=('眼', '扁桃体'), id=0, color=[100, 150, 200]),
+                1:
+                dict(link=('耳门', '听宫'), id=1, color=[200, 100, 150]),
+                2:
+                dict(link=('听宫', '听会'), id=2, color=[150, 120, 100]),
+                3:
+                dict(link=('耳门', '听会'), id=3, color=[66, 77, 229])
+            }),
+            joint_weights=[
+                1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
+            ],
+            sigmas=[
+                0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025,
+                0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025,
+                0.025, 0.025, 0.025
+            ]),
+        data_mode='topdown',
+        ann_file='train_coco.json',
+        data_prefix=dict(img='images/'),
+        pipeline=[
+            dict(type='LoadImage', backend_args=dict(backend='local')),
+            dict(type='GetBBoxCenterScale'),
+            dict(type='RandomFlip', direction='horizontal'),
+            dict(
+                type='RandomBBoxTransform',
+                scale_factor=[0.8, 1.2],
+                rotate_factor=30),
+            dict(type='TopdownAffine', input_size=(256, 256)),
+            dict(type='mmdet.YOLOXHSVRandomAug'),
+            dict(
+                type='Albumentation',
+                transforms=[
+                    dict(type='ChannelShuffle', p=0.5),
+                    dict(type='CLAHE', p=0.5),
+                    dict(type='ColorJitter', p=0.5),
+                    dict(
+                        type='CoarseDropout',
+                        max_holes=4,
+                        max_height=0.3,
+                        max_width=0.3,
+                        min_holes=1,
+                        min_height=0.2,
+                        min_width=0.2,
+                        p=0.5)
+                ]),
+            dict(
+                type='GenerateTarget',
+                encoder=dict(
+                    type='SimCCLabel',
+                    input_size=(256, 256),
+                    sigma=(12, 12),
+                    simcc_split_ratio=2.0,
+                    normalize=False,
+                    use_dark=False)),
+            dict(type='PackPoseInputs')
+        ]))
+val_dataloader = dict(
+    batch_size=8,
+    num_workers=1,
+    persistent_workers=True,
+    drop_last=False,
+    sampler=dict(type='DefaultSampler', shuffle=False, round_up=False),
+    dataset=dict(
+        type='CocoDataset',
+        data_root='data/Ear210_Keypoint_Dataset_coco/',
+        metainfo=dict(
+            dataset_name='Ear210_Keypoint_Dataset_coco',
+            classes='ear',
+            paper_info=dict(
+                author='Tongji Zihao',
+                title='Triangle Keypoints Detection',
+                container='OpenMMLab',
+                year='2023',
+                homepage='https://space.bilibili.com/1900783'),
+            keypoint_info=dict({
+                0:
+                dict(
+                    name='肾上腺', id=0, color=[101, 205, 228], type='', swap=''),
+                1:
+                dict(name='耳尖', id=1, color=[240, 128, 128], type='', swap=''),
+                2:
+                dict(name='胃', id=2, color=[154, 205, 50], type='', swap=''),
+                3:
+                dict(name='眼', id=3, color=[34, 139, 34], type='', swap=''),
+                4:
+                dict(name='口', id=4, color=[139, 0, 0], type='', swap=''),
+                5:
+                dict(name='肝', id=5, color=[255, 165, 0], type='', swap=''),
+                6:
+                dict(name='对屏尖', id=6, color=[255, 0, 255], type='', swap=''),
+                7:
+                dict(name='心', id=7, color=[255, 255, 0], type='', swap=''),
+                8:
+                dict(name='肺', id=8, color=[29, 123, 243], type='', swap=''),
+                9:
+                dict(name='肺2', id=9, color=[0, 255, 255], type='', swap=''),
+                10:
+                dict(name='膀胱', id=10, color=[128, 0, 128], type='', swap=''),
+                11:
+                dict(name='脾', id=11, color=[74, 181, 57], type='', swap=''),
+                12:
+                dict(name='角窝中', id=12, color=[165, 42, 42], type='', swap=''),
+                13:
+                dict(name='神门', id=13, color=[128, 128, 0], type='', swap=''),
+                14:
+                dict(name='肾', id=14, color=[255, 0, 0], type='', swap=''),
+                15:
+                dict(name='耳门', id=15, color=[34, 139, 34], type='', swap=''),
+                16:
+                dict(name='听宫', id=16, color=[255, 129, 0], type='', swap=''),
+                17:
+                dict(name='听会', id=17, color=[70, 130, 180], type='', swap=''),
+                18:
+                dict(name='肩', id=18, color=[63, 103, 165], type='', swap=''),
+                19:
+                dict(name='扁桃体', id=19, color=[66, 77, 229], type='', swap=''),
+                20:
+                dict(
+                    name='腰骶椎', id=20, color=[255, 105, 180], type='', swap='')
+            }),
+            skeleton_info=dict({
+                0:
+                dict(link=('眼', '扁桃体'), id=0, color=[100, 150, 200]),
+                1:
+                dict(link=('耳门', '听宫'), id=1, color=[200, 100, 150]),
+                2:
+                dict(link=('听宫', '听会'), id=2, color=[150, 120, 100]),
+                3:
+                dict(link=('耳门', '听会'), id=3, color=[66, 77, 229])
+            }),
+            joint_weights=[
+                1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
+            ],
+            sigmas=[
+                0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025,
+                0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025,
+                0.025, 0.025, 0.025
+            ]),
+        data_mode='topdown',
+        ann_file='val_coco.json',
+        data_prefix=dict(img='images/'),
+        pipeline=[
+            dict(type='LoadImage', backend_args=dict(backend='local')),
+            dict(type='GetBBoxCenterScale'),
+            dict(type='TopdownAffine', input_size=(256, 256)),
+            dict(type='PackPoseInputs')
+        ]))
+test_dataloader = dict(
+    batch_size=8,
+    num_workers=1,
+    persistent_workers=True,
+    drop_last=False,
+    sampler=dict(type='DefaultSampler', shuffle=False, round_up=False),
+    dataset=dict(
+        type='CocoDataset',
+        data_root='data/Ear210_Keypoint_Dataset_coco/',
+        metainfo=dict(
+            dataset_name='Ear210_Keypoint_Dataset_coco',
+            classes='ear',
+            paper_info=dict(
+                author='Tongji Zihao',
+                title='Triangle Keypoints Detection',
+                container='OpenMMLab',
+                year='2023',
+                homepage='https://space.bilibili.com/1900783'),
+            keypoint_info=dict({
+                0:
+                dict(
+                    name='肾上腺', id=0, color=[101, 205, 228], type='', swap=''),
+                1:
+                dict(name='耳尖', id=1, color=[240, 128, 128], type='', swap=''),
+                2:
+                dict(name='胃', id=2, color=[154, 205, 50], type='', swap=''),
+                3:
+                dict(name='眼', id=3, color=[34, 139, 34], type='', swap=''),
+                4:
+                dict(name='口', id=4, color=[139, 0, 0], type='', swap=''),
+                5:
+                dict(name='肝', id=5, color=[255, 165, 0], type='', swap=''),
+                6:
+                dict(name='对屏尖', id=6, color=[255, 0, 255], type='', swap=''),
+                7:
+                dict(name='心', id=7, color=[255, 255, 0], type='', swap=''),
+                8:
+                dict(name='肺', id=8, color=[29, 123, 243], type='', swap=''),
+                9:
+                dict(name='肺2', id=9, color=[0, 255, 255], type='', swap=''),
+                10:
+                dict(name='膀胱', id=10, color=[128, 0, 128], type='', swap=''),
+                11:
+                dict(name='脾', id=11, color=[74, 181, 57], type='', swap=''),
+                12:
+                dict(name='角窝中', id=12, color=[165, 42, 42], type='', swap=''),
+                13:
+                dict(name='神门', id=13, color=[128, 128, 0], type='', swap=''),
+                14:
+                dict(name='肾', id=14, color=[255, 0, 0], type='', swap=''),
+                15:
+                dict(name='耳门', id=15, color=[34, 139, 34], type='', swap=''),
+                16:
+                dict(name='听宫', id=16, color=[255, 129, 0], type='', swap=''),
+                17:
+                dict(name='听会', id=17, color=[70, 130, 180], type='', swap=''),
+                18:
+                dict(name='肩', id=18, color=[63, 103, 165], type='', swap=''),
+                19:
+                dict(name='扁桃体', id=19, color=[66, 77, 229], type='', swap=''),
+                20:
+                dict(
+                    name='腰骶椎', id=20, color=[255, 105, 180], type='', swap='')
+            }),
+            skeleton_info=dict({
+                0:
+                dict(link=('眼', '扁桃体'), id=0, color=[100, 150, 200]),
+                1:
+                dict(link=('耳门', '听宫'), id=1, color=[200, 100, 150]),
+                2:
+                dict(link=('听宫', '听会'), id=2, color=[150, 120, 100]),
+                3:
+                dict(link=('耳门', '听会'), id=3, color=[66, 77, 229])
+            }),
+            joint_weights=[
+                1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
+            ],
+            sigmas=[
+                0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025,
+                0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025,
+                0.025, 0.025, 0.025
+            ]),
+        data_mode='topdown',
+        ann_file='val_coco.json',
+        data_prefix=dict(img='images/'),
+        pipeline=[
+            dict(type='LoadImage', backend_args=dict(backend='local')),
+            dict(type='GetBBoxCenterScale'),
+            dict(type='TopdownAffine', input_size=(256, 256)),
+            dict(type='PackPoseInputs')
+        ]))
+val_evaluator = [
+    dict(
+        type='CocoMetric',
+        ann_file='data/Ear210_Keypoint_Dataset_coco/val_coco.json'),
+    dict(type='PCKAccuracy'),
+    dict(type='AUC'),
+    dict(type='NME', norm_mode='keypoint_distance', keypoint_indices=[1, 2])
+]
+test_evaluator = [
+    dict(
+        type='CocoMetric',
+        ann_file='data/Ear210_Keypoint_Dataset_coco/val_coco.json'),
+    dict(type='PCKAccuracy'),
+    dict(type='AUC'),
+    dict(type='NME', norm_mode='keypoint_distance', keypoint_indices=[1, 2])
+]
+launcher = 'none'
+work_dir = './work_dirs/rtmpose-s-ear'
+
+2023/06/04 19:55:17 - mmengine - INFO - Distributed training is not used, all SyncBatchNorm (SyncBN) layers in the model will be automatically reverted to BatchNormXd layers if they are used.
+2023/06/04 19:55:17 - mmengine - INFO - Hooks will be executed in the following order:
+before_run:
+(VERY_HIGH   ) RuntimeInfoHook                    
+(49          ) EMAHook                            
+(BELOW_NORMAL) LoggerHook                         
+ -------------------- 
+after_load_checkpoint:
+(49          ) EMAHook                            
+ -------------------- 
+before_train:
+(VERY_HIGH   ) RuntimeInfoHook                    
+(49          ) EMAHook                            
+(NORMAL      ) IterTimerHook                      
+(VERY_LOW    ) CheckpointHook                     
+ -------------------- 
+before_train_epoch:
+(VERY_HIGH   ) RuntimeInfoHook                    
+(NORMAL      ) IterTimerHook                      
+(NORMAL      ) DistSamplerSeedHook                
+(NORMAL      ) PipelineSwitchHook                 
+ -------------------- 
+before_train_iter:
+(VERY_HIGH   ) RuntimeInfoHook                    
+(NORMAL      ) IterTimerHook                      
+ -------------------- 
+after_train_iter:
+(VERY_HIGH   ) RuntimeInfoHook                    
+(49          ) EMAHook                            
+(NORMAL      ) IterTimerHook                      
+(BELOW_NORMAL) LoggerHook                         
+(LOW         ) ParamSchedulerHook                 
+(VERY_LOW    ) CheckpointHook                     
+ -------------------- 
+after_train_epoch:
+(NORMAL      ) IterTimerHook                      
+(LOW         ) ParamSchedulerHook                 
+(VERY_LOW    ) CheckpointHook                     
+ -------------------- 
+before_val_epoch:
+(49          ) EMAHook                            
+(NORMAL      ) IterTimerHook                      
+ -------------------- 
+before_val_iter:
+(NORMAL      ) IterTimerHook                      
+ -------------------- 
+after_val_iter:
+(NORMAL      ) IterTimerHook                      
+(NORMAL      ) PoseVisualizationHook              
+(BELOW_NORMAL) LoggerHook                         
+ -------------------- 
+after_val_epoch:
+(VERY_HIGH   ) RuntimeInfoHook                    
+(49          ) EMAHook                            
+(NORMAL      ) IterTimerHook                      
+(BELOW_NORMAL) LoggerHook                         
+(LOW         ) ParamSchedulerHook                 
+(VERY_LOW    ) CheckpointHook                     
+ -------------------- 
+before_save_checkpoint:
+(49          ) EMAHook                            
+ -------------------- 
+after_train:
+(VERY_LOW    ) CheckpointHook                     
+ -------------------- 
+before_test_epoch:
+(49          ) EMAHook                            
+(NORMAL      ) IterTimerHook                      
+ -------------------- 
+before_test_iter:
+(NORMAL      ) IterTimerHook                      
+ -------------------- 
+after_test_iter:
+(NORMAL      ) IterTimerHook                      
+(NORMAL      ) PoseVisualizationHook              
+(BELOW_NORMAL) LoggerHook                         
+ -------------------- 
+after_test_epoch:
+(VERY_HIGH   ) RuntimeInfoHook                    
+(49          ) EMAHook                            
+(NORMAL      ) IterTimerHook                      
+(BELOW_NORMAL) LoggerHook                         
+ -------------------- 
+after_run:
+(BELOW_NORMAL) LoggerHook                         
+ -------------------- 
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stem.0.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stem.0.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stem.1.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stem.1.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stem.2.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stem.2.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage1.0.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage1.0.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage1.1.main_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage1.1.main_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage1.1.short_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage1.1.short_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage1.1.final_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage1.1.final_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage1.1.blocks.0.conv1.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage1.1.blocks.0.conv1.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage1.1.blocks.0.conv2.depthwise_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage1.1.blocks.0.conv2.depthwise_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage1.1.blocks.0.conv2.pointwise_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage1.1.blocks.0.conv2.pointwise_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage1.1.attention.fc.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.0.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.0.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.main_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.main_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.short_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.short_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.final_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.final_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.blocks.0.conv1.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.blocks.0.conv1.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.blocks.0.conv2.depthwise_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.blocks.0.conv2.depthwise_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.blocks.0.conv2.pointwise_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.blocks.0.conv2.pointwise_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.blocks.1.conv1.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.blocks.1.conv1.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.blocks.1.conv2.depthwise_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.blocks.1.conv2.depthwise_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.blocks.1.conv2.pointwise_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.blocks.1.conv2.pointwise_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage2.1.attention.fc.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.0.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.0.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.main_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.main_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.short_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.short_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.final_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.final_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.blocks.0.conv1.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.blocks.0.conv1.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.blocks.0.conv2.depthwise_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.blocks.0.conv2.depthwise_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.blocks.0.conv2.pointwise_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.blocks.0.conv2.pointwise_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.blocks.1.conv1.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.blocks.1.conv1.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.blocks.1.conv2.depthwise_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.blocks.1.conv2.depthwise_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.blocks.1.conv2.pointwise_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.blocks.1.conv2.pointwise_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage3.1.attention.fc.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.0.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.0.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.1.conv1.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.1.conv1.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.1.conv2.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.1.conv2.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.2.main_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.2.main_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.2.short_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.2.short_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.2.final_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.2.final_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.2.blocks.0.conv1.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.2.blocks.0.conv1.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.2.blocks.0.conv2.depthwise_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.2.blocks.0.conv2.depthwise_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.2.blocks.0.conv2.pointwise_conv.bn.weight:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.2.blocks.0.conv2.pointwise_conv.bn.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- backbone.stage4.2.attention.fc.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - INFO - paramwise_options -- head.final_layer.bias:weight_decay=0.0
+2023/06/04 19:55:25 - mmengine - WARNING - The prefix is not set in metric class PCKAccuracy.
+2023/06/04 19:55:25 - mmengine - WARNING - The prefix is not set in metric class AUC.
+2023/06/04 19:55:25 - mmengine - WARNING - The prefix is not set in metric class NME.
+2023/06/04 19:55:33 - mmengine - INFO - load backbone. in model from: https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth
+Name of parameter - Initialization information
+
+backbone.stem.0.conv.weight - torch.Size([16, 3, 3, 3]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stem.0.bn.weight - torch.Size([16]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stem.0.bn.bias - torch.Size([16]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stem.1.conv.weight - torch.Size([16, 16, 3, 3]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stem.1.bn.weight - torch.Size([16]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stem.1.bn.bias - torch.Size([16]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stem.2.conv.weight - torch.Size([32, 16, 3, 3]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stem.2.bn.weight - torch.Size([32]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stem.2.bn.bias - torch.Size([32]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.0.conv.weight - torch.Size([64, 32, 3, 3]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.0.bn.weight - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.0.bn.bias - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.main_conv.conv.weight - torch.Size([32, 64, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.main_conv.bn.weight - torch.Size([32]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.main_conv.bn.bias - torch.Size([32]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.short_conv.conv.weight - torch.Size([32, 64, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.short_conv.bn.weight - torch.Size([32]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.short_conv.bn.bias - torch.Size([32]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.final_conv.conv.weight - torch.Size([64, 64, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.final_conv.bn.weight - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.final_conv.bn.bias - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.blocks.0.conv1.conv.weight - torch.Size([32, 32, 3, 3]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.blocks.0.conv1.bn.weight - torch.Size([32]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.blocks.0.conv1.bn.bias - torch.Size([32]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.blocks.0.conv2.depthwise_conv.conv.weight - torch.Size([32, 1, 5, 5]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.blocks.0.conv2.depthwise_conv.bn.weight - torch.Size([32]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.blocks.0.conv2.depthwise_conv.bn.bias - torch.Size([32]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.blocks.0.conv2.pointwise_conv.conv.weight - torch.Size([32, 32, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.blocks.0.conv2.pointwise_conv.bn.weight - torch.Size([32]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.blocks.0.conv2.pointwise_conv.bn.bias - torch.Size([32]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.attention.fc.weight - torch.Size([64, 64, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage1.1.attention.fc.bias - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.0.conv.weight - torch.Size([128, 64, 3, 3]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.0.bn.weight - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.0.bn.bias - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.main_conv.conv.weight - torch.Size([64, 128, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.main_conv.bn.weight - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.main_conv.bn.bias - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.short_conv.conv.weight - torch.Size([64, 128, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.short_conv.bn.weight - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.short_conv.bn.bias - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.final_conv.conv.weight - torch.Size([128, 128, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.final_conv.bn.weight - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.final_conv.bn.bias - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.0.conv1.conv.weight - torch.Size([64, 64, 3, 3]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.0.conv1.bn.weight - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.0.conv1.bn.bias - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.0.conv2.depthwise_conv.conv.weight - torch.Size([64, 1, 5, 5]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.0.conv2.depthwise_conv.bn.weight - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.0.conv2.depthwise_conv.bn.bias - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.0.conv2.pointwise_conv.conv.weight - torch.Size([64, 64, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.0.conv2.pointwise_conv.bn.weight - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.0.conv2.pointwise_conv.bn.bias - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.1.conv1.conv.weight - torch.Size([64, 64, 3, 3]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.1.conv1.bn.weight - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.1.conv1.bn.bias - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.1.conv2.depthwise_conv.conv.weight - torch.Size([64, 1, 5, 5]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.1.conv2.depthwise_conv.bn.weight - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.1.conv2.depthwise_conv.bn.bias - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.1.conv2.pointwise_conv.conv.weight - torch.Size([64, 64, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.1.conv2.pointwise_conv.bn.weight - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.blocks.1.conv2.pointwise_conv.bn.bias - torch.Size([64]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.attention.fc.weight - torch.Size([128, 128, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage2.1.attention.fc.bias - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.0.conv.weight - torch.Size([256, 128, 3, 3]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.0.bn.weight - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.0.bn.bias - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.main_conv.conv.weight - torch.Size([128, 256, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.main_conv.bn.weight - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.main_conv.bn.bias - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.short_conv.conv.weight - torch.Size([128, 256, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.short_conv.bn.weight - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.short_conv.bn.bias - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.final_conv.conv.weight - torch.Size([256, 256, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.final_conv.bn.weight - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.final_conv.bn.bias - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.0.conv1.conv.weight - torch.Size([128, 128, 3, 3]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.0.conv1.bn.weight - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.0.conv1.bn.bias - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.0.conv2.depthwise_conv.conv.weight - torch.Size([128, 1, 5, 5]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.0.conv2.depthwise_conv.bn.weight - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.0.conv2.depthwise_conv.bn.bias - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.0.conv2.pointwise_conv.conv.weight - torch.Size([128, 128, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.0.conv2.pointwise_conv.bn.weight - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.0.conv2.pointwise_conv.bn.bias - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.1.conv1.conv.weight - torch.Size([128, 128, 3, 3]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.1.conv1.bn.weight - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.1.conv1.bn.bias - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.1.conv2.depthwise_conv.conv.weight - torch.Size([128, 1, 5, 5]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.1.conv2.depthwise_conv.bn.weight - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.1.conv2.depthwise_conv.bn.bias - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.1.conv2.pointwise_conv.conv.weight - torch.Size([128, 128, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.1.conv2.pointwise_conv.bn.weight - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.blocks.1.conv2.pointwise_conv.bn.bias - torch.Size([128]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.attention.fc.weight - torch.Size([256, 256, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage3.1.attention.fc.bias - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.0.conv.weight - torch.Size([512, 256, 3, 3]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.0.bn.weight - torch.Size([512]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.0.bn.bias - torch.Size([512]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.1.conv1.conv.weight - torch.Size([256, 512, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.1.conv1.bn.weight - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.1.conv1.bn.bias - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.1.conv2.conv.weight - torch.Size([512, 1024, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.1.conv2.bn.weight - torch.Size([512]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.1.conv2.bn.bias - torch.Size([512]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.main_conv.conv.weight - torch.Size([256, 512, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.main_conv.bn.weight - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.main_conv.bn.bias - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.short_conv.conv.weight - torch.Size([256, 512, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.short_conv.bn.weight - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.short_conv.bn.bias - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.final_conv.conv.weight - torch.Size([512, 512, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.final_conv.bn.weight - torch.Size([512]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.final_conv.bn.bias - torch.Size([512]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.blocks.0.conv1.conv.weight - torch.Size([256, 256, 3, 3]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.blocks.0.conv1.bn.weight - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.blocks.0.conv1.bn.bias - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.blocks.0.conv2.depthwise_conv.conv.weight - torch.Size([256, 1, 5, 5]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.blocks.0.conv2.depthwise_conv.bn.weight - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.blocks.0.conv2.depthwise_conv.bn.bias - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.blocks.0.conv2.pointwise_conv.conv.weight - torch.Size([256, 256, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.blocks.0.conv2.pointwise_conv.bn.weight - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.blocks.0.conv2.pointwise_conv.bn.bias - torch.Size([256]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.attention.fc.weight - torch.Size([512, 512, 1, 1]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+backbone.stage4.2.attention.fc.bias - torch.Size([512]): 
+PretrainedInit: load from https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_rsb_pretrain/cspnext-s_imagenet_600e-ea671761.pth 
+
+head.final_layer.weight - torch.Size([21, 512, 7, 7]): 
+NormalInit: mean=0, std=0.001, bias=0 
+
+head.final_layer.bias - torch.Size([21]): 
+NormalInit: mean=0, std=0.001, bias=0 
+
+head.mlp.0.g - torch.Size([1]): 
+The value is the same before and after calling `init_weights` of TopdownPoseEstimator  
+
+head.mlp.1.weight - torch.Size([256, 64]): 
+NormalInit: mean=0, std=0.01, bias=0 
+
+head.gau.gamma - torch.Size([2, 128]): 
+The value is the same before and after calling `init_weights` of TopdownPoseEstimator  
+
+head.gau.beta - torch.Size([2, 128]): 
+The value is the same before and after calling `init_weights` of TopdownPoseEstimator  
+
+head.gau.o.weight - torch.Size([256, 512]): 
+NormalInit: mean=0, std=0.01, bias=0 
+
+head.gau.uv.weight - torch.Size([1152, 256]): 
+NormalInit: mean=0, std=0.01, bias=0 
+
+head.gau.ln.g - torch.Size([1]): 
+The value is the same before and after calling `init_weights` of TopdownPoseEstimator  
+
+head.gau.res_scale.scale - torch.Size([256]): 
+The value is the same before and after calling `init_weights` of TopdownPoseEstimator  
+
+head.cls_x.weight - torch.Size([512, 256]): 
+NormalInit: mean=0, std=0.01, bias=0 
+
+head.cls_y.weight - torch.Size([512, 256]): 
+NormalInit: mean=0, std=0.01, bias=0 
+2023/06/04 19:55:33 - mmengine - WARNING - "FileClient" will be deprecated in future. Please use io functions in https://mmengine.readthedocs.io/en/latest/api/fileio.html#file-io
+2023/06/04 19:55:33 - mmengine - WARNING - "HardDiskBackend" is the alias of "LocalBackend" and the former will be deprecated in future.
+2023/06/04 19:55:33 - mmengine - INFO - Checkpoints will be saved to /hy-tmp/mmpose/work_dirs/rtmpose-s-ear.
+2023/06/04 19:55:58 - mmengine - INFO - Epoch(train)   [1][1/3]  lr: 4.000000e-08  eta: 2:30:05  time: 25.084735  data_time: 24.725626  memory: 2952  loss: 0.844233  loss_kpt: 0.844233  acc_pose: 0.008929
+2023/06/04 19:56:23 - mmengine - INFO - Epoch(train)   [1][2/3]  lr: 2.105642e-04  eta: 2:27:45  time: 24.762594  data_time: 24.448476  memory: 3019  loss: 0.844642  loss_kpt: 0.844642  acc_pose: 0.008185
+2023/06/04 19:56:37 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 19:56:37 - mmengine - INFO - Epoch(train)   [1][3/3]  lr: 4.210884e-04  eta: 2:06:52  time: 21.322383  data_time: 21.052461  memory: 1990  loss: 0.738824  loss_kpt: 0.738824  acc_pose: 0.020238
+2023/06/04 19:57:01 - mmengine - INFO - Epoch(train)   [2][1/3]  lr: 6.316126e-04  eta: 2:11:03  time: 22.088495  data_time: 21.822110  memory: 3019  loss: 0.762045  loss_kpt: 0.762045  acc_pose: 0.046131
+2023/06/04 19:57:25 - mmengine - INFO - Epoch(train)   [2][2/3]  lr: 8.421368e-04  eta: 2:12:03  time: 22.320242  data_time: 22.055965  memory: 3019  loss: 0.767610  loss_kpt: 0.767610  acc_pose: 0.085577
+2023/06/04 19:57:40 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 19:57:40 - mmengine - INFO - Epoch(train)   [2][3/3]  lr: 1.052661e-03  eta: 2:04:31  time: 21.105694  data_time: 20.856947  memory: 1990  loss: 0.734050  loss_kpt: 0.734050  acc_pose: 0.090659
+2023/06/04 19:58:05 - mmengine - INFO - Epoch(train)   [3][1/3]  lr: 1.263185e-03  eta: 2:07:45  time: 21.716388  data_time: 21.466818  memory: 3019  loss: 0.733348  loss_kpt: 0.733348  acc_pose: 0.174851
+2023/06/04 19:58:29 - mmengine - INFO - Epoch(train)   [3][2/3]  lr: 1.473709e-03  eta: 2:09:11  time: 22.022458  data_time: 21.771743  memory: 3019  loss: 0.730956  loss_kpt: 0.730956  acc_pose: 0.160218
+2023/06/04 19:58:45 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 19:58:45 - mmengine - INFO - Epoch(train)   [3][3/3]  lr: 1.684234e-03  eta: 2:04:27  time: 21.274428  data_time: 21.032010  memory: 1990  loss: 0.695472  loss_kpt: 0.695472  acc_pose: 0.239286
+2023/06/04 19:59:09 - mmengine - INFO - Epoch(train)   [4][1/3]  lr: 1.894758e-03  eta: 2:05:48  time: 21.567160  data_time: 21.322336  memory: 3019  loss: 0.706362  loss_kpt: 0.706362  acc_pose: 0.161588
+2023/06/04 19:59:33 - mmengine - INFO - Epoch(train)   [4][2/3]  lr: 2.105282e-03  eta: 2:07:00  time: 21.835048  data_time: 21.588987  memory: 3019  loss: 0.710553  loss_kpt: 0.710553  acc_pose: 0.120063
+2023/06/04 19:59:49 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 19:59:49 - mmengine - INFO - Epoch(train)   [4][3/3]  lr: 2.315806e-03  eta: 2:03:50  time: 21.352398  data_time: 21.111922  memory: 1990  loss: 0.689740  loss_kpt: 0.689740  acc_pose: 0.157143
+2023/06/04 20:00:14 - mmengine - INFO - Epoch(train)   [5][1/3]  lr: 2.526331e-03  eta: 2:04:45  time: 21.571118  data_time: 21.329617  memory: 3019  loss: 0.688678  loss_kpt: 0.688678  acc_pose: 0.189732
+2023/06/04 20:00:37 - mmengine - INFO - Epoch(train)   [5][2/3]  lr: 2.736855e-03  eta: 2:05:19  time: 21.731871  data_time: 21.489149  memory: 3019  loss: 0.689929  loss_kpt: 0.689929  acc_pose: 0.233914
+2023/06/04 20:00:53 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:00:53 - mmengine - INFO - Epoch(train)   [5][3/3]  lr: 2.947379e-03  eta: 2:02:31  time: 21.307617  data_time: 21.069502  memory: 1990  loss: 0.673171  loss_kpt: 0.673171  acc_pose: 0.172619
+2023/06/04 20:01:18 - mmengine - INFO - Epoch(train)   [6][1/3]  lr: 3.157903e-03  eta: 2:03:26  time: 21.529920  data_time: 21.290355  memory: 3019  loss: 0.674848  loss_kpt: 0.674848  acc_pose: 0.172619
+2023/06/04 20:01:43 - mmengine - INFO - Epoch(train)   [6][2/3]  lr: 3.368427e-03  eta: 2:04:22  time: 21.755765  data_time: 21.515261  memory: 3019  loss: 0.680006  loss_kpt: 0.680006  acc_pose: 0.154927
+2023/06/04 20:01:58 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:01:58 - mmengine - INFO - Epoch(train)   [6][3/3]  lr: 3.578952e-03  eta: 2:01:50  time: 21.376930  data_time: 21.140092  memory: 1990  loss: 0.666503  loss_kpt: 0.666503  acc_pose: 0.167857
+2023/06/04 20:02:22 - mmengine - INFO - Epoch(train)   [7][1/3]  lr: 3.789476e-03  eta: 2:02:17  time: 21.517343  data_time: 21.279561  memory: 3019  loss: 0.698992  loss_kpt: 0.698992  acc_pose: 0.166667
+2023/06/04 20:02:48 - mmengine - INFO - Epoch(train)   [7][2/3]  lr: 4.000000e-03  eta: 2:03:15  time: 21.750580  data_time: 21.511889  memory: 3019  loss: 0.722273  loss_kpt: 0.722273  acc_pose: 0.130964
+2023/06/04 20:03:03 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:03:03 - mmengine - INFO - Epoch(train)   [7][3/3]  lr: 4.000000e-03  eta: 2:00:58  time: 21.412847  data_time: 21.177215  memory: 1990  loss: 0.759119  loss_kpt: 0.759119  acc_pose: 0.022619
+2023/06/04 20:03:26 - mmengine - INFO - Epoch(train)   [8][1/3]  lr: 4.000000e-03  eta: 2:01:04  time: 21.491832  data_time: 21.255316  memory: 3019  loss: 0.767953  loss_kpt: 0.767953  acc_pose: 0.131153
+2023/06/04 20:03:50 - mmengine - INFO - Epoch(train)   [8][2/3]  lr: 4.000000e-03  eta: 2:01:15  time: 21.587811  data_time: 21.350482  memory: 3019  loss: 0.801742  loss_kpt: 0.801742  acc_pose: 0.044643
+2023/06/04 20:04:05 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:04:05 - mmengine - INFO - Epoch(train)   [8][3/3]  lr: 4.000000e-03  eta: 1:59:32  time: 21.346251  data_time: 21.111564  memory: 1990  loss: 0.853501  loss_kpt: 0.853501  acc_pose: 0.085714
+2023/06/04 20:04:31 - mmengine - INFO - Epoch(train)   [9][1/3]  lr: 4.000000e-03  eta: 2:00:10  time: 21.522867  data_time: 21.287464  memory: 3019  loss: 0.891305  loss_kpt: 0.891305  acc_pose: 0.008185
+2023/06/04 20:04:56 - mmengine - INFO - Epoch(train)   [9][2/3]  lr: 4.000000e-03  eta: 2:00:32  time: 21.653223  data_time: 21.417123  memory: 3019  loss: 0.900211  loss_kpt: 0.900211  acc_pose: 0.148951
+2023/06/04 20:05:11 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:05:11 - mmengine - INFO - Epoch(train)   [9][3/3]  lr: 4.000000e-03  eta: 1:58:43  time: 21.393278  data_time: 21.159572  memory: 1990  loss: 0.896766  loss_kpt: 0.896766  acc_pose: 0.070238
+2023/06/04 20:05:36 - mmengine - INFO - Epoch(train)  [10][1/3]  lr: 4.000000e-03  eta: 1:59:05  time: 21.523995  data_time: 21.289558  memory: 3019  loss: 0.913515  loss_kpt: 0.913515  acc_pose: 0.100446
+2023/06/04 20:06:00 - mmengine - INFO - Epoch(train)  [10][2/3]  lr: 4.000000e-03  eta: 1:59:13  time: 21.611327  data_time: 21.376202  memory: 3019  loss: 0.973918  loss_kpt: 0.973918  acc_pose: 0.063244
+2023/06/04 20:06:15 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:06:15 - mmengine - INFO - Epoch(train)  [10][3/3]  lr: 4.000000e-03  eta: 1:57:40  time: 21.394080  data_time: 21.161037  memory: 1990  loss: 0.978897  loss_kpt: 0.978897  acc_pose: 0.057204
+2023/06/04 20:06:15 - mmengine - INFO - Saving checkpoint at 10 epochs
+2023/06/04 20:06:26 - mmengine - INFO - Epoch(val)  [10][1/6]    eta: 0:00:11  time: 2.304491  data_time: 2.250615  memory: 180  
+2023/06/04 20:06:28 - mmengine - INFO - Epoch(val)  [10][2/6]    eta: 0:00:08  time: 2.163294  data_time: 2.117967  memory: 180  
+2023/06/04 20:06:30 - mmengine - INFO - Epoch(val)  [10][3/6]    eta: 0:00:06  time: 2.112129  data_time: 2.069291  memory: 180  
+2023/06/04 20:06:32 - mmengine - INFO - Epoch(val)  [10][4/6]    eta: 0:00:04  time: 2.093465  data_time: 2.052162  memory: 180  
+2023/06/04 20:06:34 - mmengine - INFO - Epoch(val)  [10][5/6]    eta: 0:00:02  time: 2.088066  data_time: 2.047168  memory: 180  
+2023/06/04 20:06:35 - mmengine - INFO - Epoch(val)  [10][6/6]    eta: 0:00:00  time: 1.830617  data_time: 1.790449  memory: 128  
+2023/06/04 20:06:35 - mmengine - INFO - Evaluating CocoMetric...
+2023/06/04 20:06:35 - mmengine - INFO - Evaluating PCKAccuracy (normalized by ``"bbox_size"``)...
+2023/06/04 20:06:35 - mmengine - INFO - Evaluating AUC...
+2023/06/04 20:06:35 - mmengine - INFO - Evaluating NME...
+2023/06/04 20:06:35 - mmengine - INFO - Epoch(val) [10][6/6]    coco/AP: 0.000000  coco/AP .5: 0.000000  coco/AP .75: 0.000000  coco/AP (M): -1.000000  coco/AP (L): 0.000000  coco/AR: 0.000000  coco/AR .5: 0.000000  coco/AR .75: 0.000000  coco/AR (M): -1.000000  coco/AR (L): 0.000000  PCK: 0.097506  AUC: 0.003345  NME: 0.451054  data_time: 1.790449  time: 1.830617
+2023/06/04 20:06:43 - mmengine - INFO - The best checkpoint with 0.0975 PCK at 10 epoch is saved to best_PCK_epoch_10.pth.
+2023/06/04 20:07:07 - mmengine - INFO - Epoch(train)  [11][1/3]  lr: 4.000000e-03  eta: 1:57:44  time: 21.472281  data_time: 21.238493  memory: 3019  loss: 0.998315  loss_kpt: 0.998315  acc_pose: 0.104178
+2023/06/04 20:07:32 - mmengine - INFO - Epoch(train)  [11][2/3]  lr: 4.000000e-03  eta: 1:58:03  time: 21.597229  data_time: 21.362658  memory: 3019  loss: 0.994822  loss_kpt: 0.994822  acc_pose: 0.124280
+2023/06/04 20:07:47 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:07:47 - mmengine - INFO - Epoch(train)  [11][3/3]  lr: 4.000000e-03  eta: 1:56:28  time: 21.372287  data_time: 21.139515  memory: 1990  loss: 0.979308  loss_kpt: 0.979308  acc_pose: 0.166667
+2023/06/04 20:08:11 - mmengine - INFO - Epoch(train)  [12][1/3]  lr: 4.000000e-03  eta: 1:56:38  time: 21.467262  data_time: 21.233776  memory: 3019  loss: 0.975626  loss_kpt: 0.975626  acc_pose: 0.131130
+2023/06/04 20:08:36 - mmengine - INFO - Epoch(train)  [12][2/3]  lr: 4.000000e-03  eta: 1:56:50  time: 21.572292  data_time: 21.338155  memory: 3019  loss: 0.969047  loss_kpt: 0.969047  acc_pose: 0.157029
+2023/06/04 20:08:52 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:08:52 - mmengine - INFO - Epoch(train)  [12][3/3]  lr: 4.000000e-03  eta: 1:55:32  time: 21.396515  data_time: 21.163881  memory: 1990  loss: 0.955071  loss_kpt: 0.955071  acc_pose: 0.184524
+2023/06/04 20:09:16 - mmengine - INFO - Epoch(train)  [13][1/3]  lr: 4.000000e-03  eta: 1:55:40  time: 21.488447  data_time: 21.255223  memory: 3019  loss: 0.948831  loss_kpt: 0.948831  acc_pose: 0.183095
+2023/06/04 20:09:43 - mmengine - INFO - Epoch(train)  [13][2/3]  lr: 4.000000e-03  eta: 1:56:00  time: 21.616782  data_time: 21.383004  memory: 3019  loss: 0.942783  loss_kpt: 0.942783  acc_pose: 0.189732
+2023/06/04 20:09:59 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:09:59 - mmengine - INFO - Epoch(train)  [13][3/3]  lr: 4.000000e-03  eta: 1:54:55  time: 21.480279  data_time: 21.247978  memory: 1990  loss: 0.929139  loss_kpt: 0.929139  acc_pose: 0.170238
+2023/06/04 20:10:24 - mmengine - INFO - Epoch(train)  [14][1/3]  lr: 4.000000e-03  eta: 1:55:04  time: 21.576804  data_time: 21.343950  memory: 3019  loss: 0.923700  loss_kpt: 0.923700  acc_pose: 0.145833
+2023/06/04 20:10:50 - mmengine - INFO - Epoch(train)  [14][2/3]  lr: 4.000000e-03  eta: 1:55:10  time: 21.662222  data_time: 21.428646  memory: 3019  loss: 0.916392  loss_kpt: 0.916392  acc_pose: 0.236737
+2023/06/04 20:11:03 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:11:03 - mmengine - INFO - Epoch(train)  [14][3/3]  lr: 4.000000e-03  eta: 1:53:44  time: 21.460203  data_time: 21.228013  memory: 1990  loss: 0.904328  loss_kpt: 0.904328  acc_pose: 0.214591
+2023/06/04 20:11:26 - mmengine - INFO - Epoch(train)  [15][1/3]  lr: 4.000000e-03  eta: 1:53:37  time: 21.507215  data_time: 21.274466  memory: 3019  loss: 0.898069  loss_kpt: 0.898069  acc_pose: 0.229993
+2023/06/04 20:11:52 - mmengine - INFO - Epoch(train)  [15][2/3]  lr: 4.000000e-03  eta: 1:53:44  time: 21.595800  data_time: 21.362539  memory: 3019  loss: 0.892264  loss_kpt: 0.892264  acc_pose: 0.215101
+2023/06/04 20:12:07 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:12:07 - mmengine - INFO - Epoch(train)  [15][3/3]  lr: 4.000000e-03  eta: 1:52:37  time: 21.453300  data_time: 21.221184  memory: 1990  loss: 0.880483  loss_kpt: 0.880483  acc_pose: 0.215720
+2023/06/04 20:12:32 - mmengine - INFO - Epoch(train)  [16][1/3]  lr: 4.000000e-03  eta: 1:52:41  time: 21.534522  data_time: 21.301908  memory: 3019  loss: 0.875378  loss_kpt: 0.875378  acc_pose: 0.159427
+2023/06/04 20:12:56 - mmengine - INFO - Epoch(train)  [16][2/3]  lr: 4.000000e-03  eta: 1:52:38  time: 21.591728  data_time: 21.358627  memory: 3019  loss: 0.869665  loss_kpt: 0.869665  acc_pose: 0.180060
+2023/06/04 20:13:12 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:13:12 - mmengine - INFO - Epoch(train)  [16][3/3]  lr: 4.000000e-03  eta: 1:51:36  time: 21.463030  data_time: 21.231125  memory: 1990  loss: 0.859252  loss_kpt: 0.859252  acc_pose: 0.250000
+2023/06/04 20:13:36 - mmengine - INFO - Epoch(train)  [17][1/3]  lr: 4.000000e-03  eta: 1:51:34  time: 21.527152  data_time: 21.294814  memory: 3019  loss: 0.853819  loss_kpt: 0.853819  acc_pose: 0.236867
+2023/06/04 20:14:00 - mmengine - INFO - Epoch(train)  [17][2/3]  lr: 4.000000e-03  eta: 1:51:29  time: 21.577428  data_time: 21.344653  memory: 3019  loss: 0.848351  loss_kpt: 0.848351  acc_pose: 0.252232
+2023/06/04 20:14:16 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:14:16 - mmengine - INFO - Epoch(train)  [17][3/3]  lr: 4.000000e-03  eta: 1:50:31  time: 21.390014  data_time: 21.160890  memory: 1990  loss: 0.838357  loss_kpt: 0.838357  acc_pose: 0.297619
+2023/06/04 20:14:41 - mmengine - INFO - Epoch(train)  [18][1/3]  lr: 4.000000e-03  eta: 1:50:31  time: 21.403126  data_time: 21.174311  memory: 3019  loss: 0.832539  loss_kpt: 0.832539  acc_pose: 0.251724
+2023/06/04 20:15:06 - mmengine - INFO - Epoch(train)  [18][2/3]  lr: 4.000000e-03  eta: 1:50:31  time: 21.617508  data_time: 21.387023  memory: 3019  loss: 0.833669  loss_kpt: 0.833669  acc_pose: 0.208333
+2023/06/04 20:15:21 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:15:21 - mmengine - INFO - Epoch(train)  [18][3/3]  lr: 4.000000e-03  eta: 1:49:29  time: 21.420237  data_time: 21.191353  memory: 1990  loss: 0.824306  loss_kpt: 0.824306  acc_pose: 0.194048
+2023/06/04 20:15:47 - mmengine - INFO - Epoch(train)  [19][1/3]  lr: 4.000000e-03  eta: 1:49:32  time: 21.472428  data_time: 21.243409  memory: 3019  loss: 0.820259  loss_kpt: 0.820259  acc_pose: 0.224820
+2023/06/04 20:16:12 - mmengine - INFO - Epoch(train)  [19][2/3]  lr: 4.000000e-03  eta: 1:49:29  time: 21.671144  data_time: 21.440268  memory: 3019  loss: 0.820346  loss_kpt: 0.820346  acc_pose: 0.223557
+2023/06/04 20:16:27 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:16:27 - mmengine - INFO - Epoch(train)  [19][3/3]  lr: 4.000000e-03  eta: 1:48:33  time: 21.467677  data_time: 21.238287  memory: 1990  loss: 0.812704  loss_kpt: 0.812704  acc_pose: 0.254762
+2023/06/04 20:16:52 - mmengine - INFO - Epoch(train)  [20][1/3]  lr: 4.000000e-03  eta: 1:48:32  time: 21.491783  data_time: 21.262455  memory: 3019  loss: 0.809663  loss_kpt: 0.809663  acc_pose: 0.221974
+2023/06/04 20:17:17 - mmengine - INFO - Epoch(train)  [20][2/3]  lr: 4.000000e-03  eta: 1:48:30  time: 21.691783  data_time: 21.460918  memory: 3019  loss: 0.812926  loss_kpt: 0.812926  acc_pose: 0.250000
+2023/06/04 20:17:31 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:17:31 - mmengine - INFO - Epoch(train)  [20][3/3]  lr: 4.000000e-03  eta: 1:47:28  time: 21.480720  data_time: 21.251715  memory: 1990  loss: 0.803809  loss_kpt: 0.803809  acc_pose: 0.239286
+2023/06/04 20:17:31 - mmengine - INFO - Saving checkpoint at 20 epochs
+2023/06/04 20:17:42 - mmengine - INFO - Epoch(val)  [20][1/6]    eta: 0:00:10  time: 1.874805  data_time: 1.834911  memory: 180  
+2023/06/04 20:17:44 - mmengine - INFO - Epoch(val)  [20][2/6]    eta: 0:00:08  time: 1.894600  data_time: 1.855057  memory: 180  
+2023/06/04 20:17:46 - mmengine - INFO - Epoch(val)  [20][3/6]    eta: 0:00:06  time: 1.907035  data_time: 1.867866  memory: 180  
+2023/06/04 20:17:48 - mmengine - INFO - Epoch(val)  [20][4/6]    eta: 0:00:04  time: 1.919838  data_time: 1.880937  memory: 180  
+2023/06/04 20:17:50 - mmengine - INFO - Epoch(val)  [20][5/6]    eta: 0:00:02  time: 1.932652  data_time: 1.893962  memory: 180  
+2023/06/04 20:17:50 - mmengine - INFO - Epoch(val)  [20][6/6]    eta: 0:00:00  time: 1.817002  data_time: 1.778751  memory: 128  
+2023/06/04 20:17:50 - mmengine - INFO - Evaluating CocoMetric...
+2023/06/04 20:17:50 - mmengine - INFO - Evaluating PCKAccuracy (normalized by ``"bbox_size"``)...
+2023/06/04 20:17:50 - mmengine - INFO - Evaluating AUC...
+2023/06/04 20:17:50 - mmengine - INFO - Evaluating NME...
+2023/06/04 20:17:50 - mmengine - INFO - Epoch(val) [20][6/6]    coco/AP: 0.000000  coco/AP .5: 0.000000  coco/AP .75: 0.000000  coco/AP (M): -1.000000  coco/AP (L): 0.000000  coco/AR: 0.000000  coco/AR .5: 0.000000  coco/AR .75: 0.000000  coco/AR (M): -1.000000  coco/AR (L): 0.000000  PCK: 0.301587  AUC: 0.009864  NME: 0.268437  data_time: 1.587024  time: 1.623386
+2023/06/04 20:17:50 - mmengine - INFO - The previous best checkpoint /hy-tmp/mmpose/work_dirs/rtmpose-s-ear/best_PCK_epoch_10.pth is removed
+2023/06/04 20:17:59 - mmengine - INFO - The best checkpoint with 0.3016 PCK at 20 epoch is saved to best_PCK_epoch_20.pth.
+2023/06/04 20:18:26 - mmengine - INFO - Epoch(train)  [21][1/3]  lr: 4.000000e-03  eta: 1:47:33  time: 21.527401  data_time: 21.298488  memory: 3019  loss: 0.799444  loss_kpt: 0.799444  acc_pose: 0.261905
+2023/06/04 20:18:50 - mmengine - INFO - Epoch(train)  [21][2/3]  lr: 4.000000e-03  eta: 1:47:24  time: 21.689790  data_time: 21.459359  memory: 3019  loss: 0.801437  loss_kpt: 0.801437  acc_pose: 0.214557
+2023/06/04 20:19:05 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:19:05 - mmengine - INFO - Epoch(train)  [21][3/3]  lr: 4.000000e-03  eta: 1:46:31  time: 21.505019  data_time: 21.276165  memory: 1990  loss: 0.794713  loss_kpt: 0.794713  acc_pose: 0.275000
+2023/06/04 20:19:30 - mmengine - INFO - Epoch(train)  [22][1/3]  lr: 4.000000e-03  eta: 1:46:28  time: 21.542768  data_time: 21.314036  memory: 3019  loss: 0.791372  loss_kpt: 0.791372  acc_pose: 0.258314
+2023/06/04 20:19:55 - mmengine - INFO - Epoch(train)  [22][2/3]  lr: 4.000000e-03  eta: 1:46:20  time: 21.723177  data_time: 21.492716  memory: 3019  loss: 0.793945  loss_kpt: 0.793945  acc_pose: 0.213742
+2023/06/04 20:20:09 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:20:09 - mmengine - INFO - Epoch(train)  [22][3/3]  lr: 4.000000e-03  eta: 1:45:23  time: 21.501229  data_time: 21.272422  memory: 1990  loss: 0.786743  loss_kpt: 0.786743  acc_pose: 0.260714
+2023/06/04 20:20:34 - mmengine - INFO - Epoch(train)  [23][1/3]  lr: 4.000000e-03  eta: 1:45:18  time: 21.498253  data_time: 21.269377  memory: 3019  loss: 0.783232  loss_kpt: 0.783232  acc_pose: 0.207911
+2023/06/04 20:20:58 - mmengine - INFO - Epoch(train)  [23][2/3]  lr: 4.000000e-03  eta: 1:45:09  time: 21.690860  data_time: 21.460393  memory: 3019  loss: 0.785356  loss_kpt: 0.785356  acc_pose: 0.262649
+2023/06/04 20:21:13 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:21:13 - mmengine - INFO - Epoch(train)  [23][3/3]  lr: 4.000000e-03  eta: 1:44:19  time: 21.509170  data_time: 21.280310  memory: 1990  loss: 0.766417  loss_kpt: 0.766417  acc_pose: 0.250244
+2023/06/04 20:21:39 - mmengine - INFO - Epoch(train)  [24][1/3]  lr: 4.000000e-03  eta: 1:44:14  time: 21.494431  data_time: 21.265546  memory: 3019  loss: 0.754478  loss_kpt: 0.754478  acc_pose: 0.235863
+2023/06/04 20:22:01 - mmengine - INFO - Epoch(train)  [24][2/3]  lr: 4.000000e-03  eta: 1:43:57  time: 21.653867  data_time: 21.423381  memory: 3019  loss: 0.735190  loss_kpt: 0.735190  acc_pose: 0.246648
+2023/06/04 20:22:18 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:22:18 - mmengine - INFO - Epoch(train)  [24][3/3]  lr: 4.000000e-03  eta: 1:43:16  time: 21.524361  data_time: 21.295489  memory: 1990  loss: 0.722690  loss_kpt: 0.722690  acc_pose: 0.253938
+2023/06/04 20:22:43 - mmengine - INFO - Epoch(train)  [25][1/3]  lr: 4.000000e-03  eta: 1:43:08  time: 21.551044  data_time: 21.322152  memory: 3019  loss: 0.702189  loss_kpt: 0.702189  acc_pose: 0.298363
+2023/06/04 20:23:08 - mmengine - INFO - Epoch(train)  [25][2/3]  lr: 4.000000e-03  eta: 1:42:59  time: 21.731837  data_time: 21.501306  memory: 3019  loss: 0.671833  loss_kpt: 0.671833  acc_pose: 0.273349
+2023/06/04 20:23:23 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:23:23 - mmengine - INFO - Epoch(train)  [25][3/3]  lr: 4.000000e-03  eta: 1:42:12  time: 21.517031  data_time: 21.288054  memory: 1990  loss: 0.642929  loss_kpt: 0.642929  acc_pose: 0.234524
+2023/06/04 20:23:47 - mmengine - INFO - Epoch(train)  [26][1/3]  lr: 4.000000e-03  eta: 1:42:01  time: 21.504962  data_time: 21.275791  memory: 3019  loss: 0.631253  loss_kpt: 0.631253  acc_pose: 0.276467
+2023/06/04 20:24:10 - mmengine - INFO - Epoch(train)  [26][2/3]  lr: 4.000000e-03  eta: 1:41:44  time: 21.663949  data_time: 21.432994  memory: 3019  loss: 0.626052  loss_kpt: 0.626052  acc_pose: 0.267857
+2023/06/04 20:24:24 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:24:24 - mmengine - INFO - Epoch(train)  [26][3/3]  lr: 4.000000e-03  eta: 1:40:56  time: 21.450817  data_time: 21.221400  memory: 1990  loss: 0.605182  loss_kpt: 0.605182  acc_pose: 0.272619
+2023/06/04 20:24:48 - mmengine - INFO - Epoch(train)  [27][1/3]  lr: 4.000000e-03  eta: 1:40:43  time: 21.447534  data_time: 21.218123  memory: 3019  loss: 0.562583  loss_kpt: 0.562583  acc_pose: 0.235261
+2023/06/04 20:25:13 - mmengine - INFO - Epoch(train)  [27][2/3]  lr: 4.000000e-03  eta: 1:40:35  time: 21.651173  data_time: 21.420134  memory: 3019  loss: 0.550726  loss_kpt: 0.550726  acc_pose: 0.221124
+2023/06/04 20:25:28 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:25:28 - mmengine - INFO - Epoch(train)  [27][3/3]  lr: 4.000000e-03  eta: 1:39:51  time: 21.474457  data_time: 21.245062  memory: 1990  loss: 0.525969  loss_kpt: 0.525969  acc_pose: 0.257204
+2023/06/04 20:25:53 - mmengine - INFO - Epoch(train)  [28][1/3]  lr: 4.000000e-03  eta: 1:39:41  time: 21.466185  data_time: 21.236861  memory: 3019  loss: 0.518966  loss_kpt: 0.518966  acc_pose: 0.273302
+2023/06/04 20:26:20 - mmengine - INFO - Epoch(train)  [28][2/3]  lr: 4.000000e-03  eta: 1:39:35  time: 21.704375  data_time: 21.473511  memory: 3019  loss: 0.520589  loss_kpt: 0.520589  acc_pose: 0.234517
+2023/06/04 20:26:34 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:26:34 - mmengine - INFO - Epoch(train)  [28][3/3]  lr: 4.000000e-03  eta: 1:38:49  time: 21.494874  data_time: 21.265650  memory: 1990  loss: 0.509880  loss_kpt: 0.509880  acc_pose: 0.290476
+2023/06/04 20:26:57 - mmengine - INFO - Epoch(train)  [29][1/3]  lr: 4.000000e-03  eta: 1:38:35  time: 21.469060  data_time: 21.239776  memory: 3019  loss: 0.505539  loss_kpt: 0.505539  acc_pose: 0.251642
+2023/06/04 20:27:22 - mmengine - INFO - Epoch(train)  [29][2/3]  lr: 4.000000e-03  eta: 1:38:22  time: 21.647270  data_time: 21.416365  memory: 3019  loss: 0.507373  loss_kpt: 0.507373  acc_pose: 0.212396
+2023/06/04 20:27:36 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:27:36 - mmengine - INFO - Epoch(train)  [29][3/3]  lr: 4.000000e-03  eta: 1:37:39  time: 21.442824  data_time: 21.213550  memory: 1990  loss: 0.499632  loss_kpt: 0.499632  acc_pose: 0.261905
+2023/06/04 20:28:00 - mmengine - INFO - Epoch(train)  [30][1/3]  lr: 4.000000e-03  eta: 1:37:25  time: 21.395032  data_time: 21.165562  memory: 3019  loss: 0.496047  loss_kpt: 0.496047  acc_pose: 0.258929
+2023/06/04 20:28:24 - mmengine - INFO - Epoch(train)  [30][2/3]  lr: 4.000000e-03  eta: 1:37:12  time: 21.554708  data_time: 21.323526  memory: 3019  loss: 0.498428  loss_kpt: 0.498428  acc_pose: 0.235320
+2023/06/04 20:28:40 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:28:40 - mmengine - INFO - Epoch(train)  [30][3/3]  lr: 4.000000e-03  eta: 1:36:33  time: 21.362411  data_time: 21.132802  memory: 1990  loss: 0.490917  loss_kpt: 0.490917  acc_pose: 0.295238
+2023/06/04 20:28:40 - mmengine - INFO - Saving checkpoint at 30 epochs
+2023/06/04 20:28:51 - mmengine - INFO - Epoch(val)  [30][1/6]    eta: 0:00:10  time: 1.842594  data_time: 1.804356  memory: 180  
+2023/06/04 20:28:53 - mmengine - INFO - Epoch(val)  [30][2/6]    eta: 0:00:08  time: 1.856323  data_time: 1.818207  memory: 180  
+2023/06/04 20:28:55 - mmengine - INFO - Epoch(val)  [30][3/6]    eta: 0:00:06  time: 1.866316  data_time: 1.828237  memory: 180  
+2023/06/04 20:28:57 - mmengine - INFO - Epoch(val)  [30][4/6]    eta: 0:00:04  time: 1.877236  data_time: 1.839227  memory: 180  
+2023/06/04 20:28:59 - mmengine - INFO - Epoch(val)  [30][5/6]    eta: 0:00:02  time: 1.888288  data_time: 1.850346  memory: 180  
+2023/06/04 20:29:00 - mmengine - INFO - Epoch(val)  [30][6/6]    eta: 0:00:00  time: 1.813520  data_time: 1.775874  memory: 128  
+2023/06/04 20:29:00 - mmengine - INFO - Evaluating CocoMetric...
+2023/06/04 20:29:00 - mmengine - INFO - Evaluating PCKAccuracy (normalized by ``"bbox_size"``)...
+2023/06/04 20:29:00 - mmengine - INFO - Evaluating AUC...
+2023/06/04 20:29:00 - mmengine - INFO - Evaluating NME...
+2023/06/04 20:29:00 - mmengine - INFO - Epoch(val) [30][6/6]    coco/AP: 0.000000  coco/AP .5: 0.000000  coco/AP .75: 0.000000  coco/AP (M): -1.000000  coco/AP (L): 0.000000  coco/AR: 0.000000  coco/AR .5: 0.000000  coco/AR .75: 0.000000  coco/AR (M): -1.000000  coco/AR (L): 0.000000  PCK: 0.307256  AUC: 0.011905  NME: 0.263540  data_time: 1.590307  time: 1.626312
+2023/06/04 20:29:00 - mmengine - INFO - The previous best checkpoint /hy-tmp/mmpose/work_dirs/rtmpose-s-ear/best_PCK_epoch_20.pth is removed
+2023/06/04 20:29:08 - mmengine - INFO - The best checkpoint with 0.3073 PCK at 30 epoch is saved to best_PCK_epoch_30.pth.
+2023/06/04 20:29:33 - mmengine - INFO - Epoch(train)  [31][1/3]  lr: 4.000000e-03  eta: 1:36:24  time: 21.370713  data_time: 21.141230  memory: 3019  loss: 0.489083  loss_kpt: 0.489083  acc_pose: 0.274731
+2023/06/04 20:29:59 - mmengine - INFO - Epoch(train)  [31][2/3]  lr: 4.000000e-03  eta: 1:36:14  time: 21.617641  data_time: 21.386539  memory: 3019  loss: 0.491671  loss_kpt: 0.491671  acc_pose: 0.248736
+2023/06/04 20:30:15 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:30:15 - mmengine - INFO - Epoch(train)  [31][3/3]  lr: 4.000000e-03  eta: 1:35:37  time: 21.470944  data_time: 21.241355  memory: 1990  loss: 0.485797  loss_kpt: 0.485797  acc_pose: 0.289286
+2023/06/04 20:30:41 - mmengine - INFO - Epoch(train)  [32][1/3]  lr: 4.000000e-03  eta: 1:35:27  time: 21.477491  data_time: 21.247886  memory: 3019  loss: 0.483725  loss_kpt: 0.483725  acc_pose: 0.273349
+2023/06/04 20:31:07 - mmengine - INFO - Epoch(train)  [32][2/3]  lr: 4.000000e-03  eta: 1:35:19  time: 21.696637  data_time: 21.465209  memory: 3019  loss: 0.486702  loss_kpt: 0.486702  acc_pose: 0.296131
+2023/06/04 20:31:23 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:31:23 - mmengine - INFO - Epoch(train)  [32][3/3]  lr: 4.000000e-03  eta: 1:34:41  time: 21.505750  data_time: 21.275866  memory: 1990  loss: 0.480626  loss_kpt: 0.480626  acc_pose: 0.275000
+2023/06/04 20:31:50 - mmengine - INFO - Epoch(train)  [33][1/3]  lr: 4.000000e-03  eta: 1:34:35  time: 21.566178  data_time: 21.336327  memory: 3019  loss: 0.478791  loss_kpt: 0.478791  acc_pose: 0.296450
+2023/06/04 20:32:14 - mmengine - INFO - Epoch(train)  [33][2/3]  lr: 4.000000e-03  eta: 1:34:21  time: 21.747134  data_time: 21.515751  memory: 3019  loss: 0.481809  loss_kpt: 0.481809  acc_pose: 0.276042
+2023/06/04 20:32:29 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:32:29 - mmengine - INFO - Epoch(train)  [33][3/3]  lr: 4.000000e-03  eta: 1:33:41  time: 21.547802  data_time: 21.318003  memory: 1990  loss: 0.477282  loss_kpt: 0.477282  acc_pose: 0.201504
+2023/06/04 20:32:54 - mmengine - INFO - Epoch(train)  [34][1/3]  lr: 4.000000e-03  eta: 1:33:28  time: 21.562657  data_time: 21.332381  memory: 3019  loss: 0.476137  loss_kpt: 0.476137  acc_pose: 0.263393
+2023/06/04 20:33:19 - mmengine - INFO - Epoch(train)  [34][2/3]  lr: 4.000000e-03  eta: 1:33:14  time: 21.744369  data_time: 21.512534  memory: 3019  loss: 0.479843  loss_kpt: 0.479843  acc_pose: 0.293155
+2023/06/04 20:33:34 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:33:34 - mmengine - INFO - Epoch(train)  [34][3/3]  lr: 4.000000e-03  eta: 1:32:38  time: 21.556311  data_time: 21.326052  memory: 1990  loss: 0.475543  loss_kpt: 0.475543  acc_pose: 0.247985
+2023/06/04 20:33:59 - mmengine - INFO - Epoch(train)  [35][1/3]  lr: 4.000000e-03  eta: 1:32:25  time: 21.555089  data_time: 21.325050  memory: 3019  loss: 0.473980  loss_kpt: 0.473980  acc_pose: 0.292411
+2023/06/04 20:34:23 - mmengine - INFO - Epoch(train)  [35][2/3]  lr: 4.000000e-03  eta: 1:32:09  time: 21.737914  data_time: 21.506312  memory: 3019  loss: 0.477682  loss_kpt: 0.477682  acc_pose: 0.261456
+2023/06/04 20:34:37 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:34:37 - mmengine - INFO - Epoch(train)  [35][3/3]  lr: 4.000000e-03  eta: 1:31:29  time: 21.506036  data_time: 21.276207  memory: 1990  loss: 0.472480  loss_kpt: 0.472480  acc_pose: 0.291667
+2023/06/04 20:35:03 - mmengine - INFO - Epoch(train)  [36][1/3]  lr: 4.000000e-03  eta: 1:31:17  time: 21.511316  data_time: 21.281705  memory: 3019  loss: 0.471672  loss_kpt: 0.471672  acc_pose: 0.278616
+2023/06/04 20:35:27 - mmengine - INFO - Epoch(train)  [36][2/3]  lr: 4.000000e-03  eta: 1:31:02  time: 21.695161  data_time: 21.464032  memory: 3019  loss: 0.475447  loss_kpt: 0.475447  acc_pose: 0.253720
+2023/06/04 20:35:41 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:35:41 - mmengine - INFO - Epoch(train)  [36][3/3]  lr: 4.000000e-03  eta: 1:30:22  time: 21.461878  data_time: 21.232379  memory: 1990  loss: 0.470817  loss_kpt: 0.470817  acc_pose: 0.284524
+2023/06/04 20:36:07 - mmengine - INFO - Epoch(train)  [37][1/3]  lr: 4.000000e-03  eta: 1:30:11  time: 21.475557  data_time: 21.245746  memory: 3019  loss: 0.470387  loss_kpt: 0.470387  acc_pose: 0.261758
+2023/06/04 20:36:31 - mmengine - INFO - Epoch(train)  [37][2/3]  lr: 4.000000e-03  eta: 1:29:56  time: 21.693830  data_time: 21.462338  memory: 3019  loss: 0.474152  loss_kpt: 0.474152  acc_pose: 0.243481
+2023/06/04 20:36:47 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:36:47 - mmengine - INFO - Epoch(train)  [37][3/3]  lr: 4.000000e-03  eta: 1:29:21  time: 21.468385  data_time: 21.238438  memory: 1990  loss: 0.470614  loss_kpt: 0.470614  acc_pose: 0.238339
+2023/06/04 20:37:14 - mmengine - INFO - Epoch(train)  [38][1/3]  lr: 4.000000e-03  eta: 1:29:11  time: 21.518987  data_time: 21.289004  memory: 3019  loss: 0.470272  loss_kpt: 0.470272  acc_pose: 0.259129
+2023/06/04 20:37:36 - mmengine - INFO - Epoch(train)  [38][2/3]  lr: 4.000000e-03  eta: 1:28:51  time: 21.664512  data_time: 21.432884  memory: 3019  loss: 0.474084  loss_kpt: 0.474084  acc_pose: 0.271577
+2023/06/04 20:37:50 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:37:50 - mmengine - INFO - Epoch(train)  [38][3/3]  lr: 4.000000e-03  eta: 1:28:13  time: 21.436992  data_time: 21.206976  memory: 1990  loss: 0.470231  loss_kpt: 0.470231  acc_pose: 0.229915
+2023/06/04 20:38:15 - mmengine - INFO - Epoch(train)  [39][1/3]  lr: 4.000000e-03  eta: 1:27:59  time: 21.451315  data_time: 21.221376  memory: 3019  loss: 0.469012  loss_kpt: 0.469012  acc_pose: 0.291667
+2023/06/04 20:38:40 - mmengine - INFO - Epoch(train)  [39][2/3]  lr: 4.000000e-03  eta: 1:27:45  time: 21.671826  data_time: 21.440306  memory: 3019  loss: 0.473462  loss_kpt: 0.473462  acc_pose: 0.225624
+2023/06/04 20:38:57 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:38:57 - mmengine - INFO - Epoch(train)  [39][3/3]  lr: 4.000000e-03  eta: 1:27:13  time: 21.497868  data_time: 21.267910  memory: 1990  loss: 0.468003  loss_kpt: 0.468003  acc_pose: 0.305098
+2023/06/04 20:39:20 - mmengine - INFO - Epoch(train)  [40][1/3]  lr: 4.000000e-03  eta: 1:26:55  time: 21.476527  data_time: 21.246546  memory: 3019  loss: 0.467735  loss_kpt: 0.467735  acc_pose: 0.260629
+2023/06/04 20:39:44 - mmengine - INFO - Epoch(train)  [40][2/3]  lr: 4.000000e-03  eta: 1:26:39  time: 21.665308  data_time: 21.433709  memory: 3019  loss: 0.471219  loss_kpt: 0.471219  acc_pose: 0.294643
+2023/06/04 20:39:58 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:39:58 - mmengine - INFO - Epoch(train)  [40][3/3]  lr: 4.000000e-03  eta: 1:26:02  time: 21.433938  data_time: 21.203947  memory: 1990  loss: 0.466586  loss_kpt: 0.466586  acc_pose: 0.279762
+2023/06/04 20:39:58 - mmengine - INFO - Saving checkpoint at 40 epochs
+2023/06/04 20:40:09 - mmengine - INFO - Epoch(val)  [40][1/6]    eta: 0:00:10  time: 1.833239  data_time: 1.795457  memory: 180  
+2023/06/04 20:40:11 - mmengine - INFO - Epoch(val)  [40][2/6]    eta: 0:00:08  time: 1.844227  data_time: 1.806225  memory: 180  
+2023/06/04 20:40:13 - mmengine - INFO - Epoch(val)  [40][3/6]    eta: 0:00:06  time: 1.852489  data_time: 1.814477  memory: 180  
+2023/06/04 20:40:15 - mmengine - INFO - Epoch(val)  [40][4/6]    eta: 0:00:04  time: 1.861754  data_time: 1.823711  memory: 180  
+2023/06/04 20:40:17 - mmengine - INFO - Epoch(val)  [40][5/6]    eta: 0:00:02  time: 1.871330  data_time: 1.833375  memory: 180  
+2023/06/04 20:40:18 - mmengine - INFO - Epoch(val)  [40][6/6]    eta: 0:00:00  time: 1.816105  data_time: 1.778358  memory: 128  
+2023/06/04 20:40:18 - mmengine - INFO - Evaluating CocoMetric...
+2023/06/04 20:40:18 - mmengine - INFO - Evaluating PCKAccuracy (normalized by ``"bbox_size"``)...
+2023/06/04 20:40:18 - mmengine - INFO - Evaluating AUC...
+2023/06/04 20:40:18 - mmengine - INFO - Evaluating NME...
+2023/06/04 20:40:18 - mmengine - INFO - Epoch(val) [40][6/6]    coco/AP: 0.000000  coco/AP .5: 0.000000  coco/AP .75: 0.000000  coco/AP (M): -1.000000  coco/AP (L): 0.000000  coco/AR: 0.000000  coco/AR .5: 0.000000  coco/AR .75: 0.000000  coco/AR (M): -1.000000  coco/AR (L): 0.000000  PCK: 0.342404  AUC: 0.008617  NME: 0.223790  data_time: 1.603532  time: 1.640805
+2023/06/04 20:40:18 - mmengine - INFO - The previous best checkpoint /hy-tmp/mmpose/work_dirs/rtmpose-s-ear/best_PCK_epoch_30.pth is removed
+2023/06/04 20:40:26 - mmengine - INFO - The best checkpoint with 0.3424 PCK at 40 epoch is saved to best_PCK_epoch_40.pth.
+2023/06/04 20:40:51 - mmengine - INFO - Epoch(train)  [41][1/3]  lr: 4.000000e-03  eta: 1:25:47  time: 21.474617  data_time: 21.244486  memory: 3019  loss: 0.466761  loss_kpt: 0.466761  acc_pose: 0.258326
+2023/06/04 20:41:15 - mmengine - INFO - Epoch(train)  [41][2/3]  lr: 4.000000e-03  eta: 1:25:31  time: 21.623923  data_time: 21.391991  memory: 3019  loss: 0.470672  loss_kpt: 0.470672  acc_pose: 0.281545
+2023/06/04 20:41:31 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:41:31 - mmengine - INFO - Epoch(train)  [41][3/3]  lr: 4.000000e-03  eta: 1:24:58  time: 21.435474  data_time: 21.205014  memory: 1990  loss: 0.466771  loss_kpt: 0.466771  acc_pose: 0.288095
+2023/06/04 20:41:54 - mmengine - INFO - Epoch(train)  [42][1/3]  lr: 4.000000e-03  eta: 1:24:39  time: 21.403153  data_time: 21.172614  memory: 3019  loss: 0.466541  loss_kpt: 0.466541  acc_pose: 0.291088
+2023/06/04 20:42:19 - mmengine - INFO - Epoch(train)  [42][2/3]  lr: 4.000000e-03  eta: 1:24:25  time: 21.614031  data_time: 21.381821  memory: 3019  loss: 0.469942  loss_kpt: 0.469942  acc_pose: 0.303571
+2023/06/04 20:42:34 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:42:34 - mmengine - INFO - Epoch(train)  [42][3/3]  lr: 4.000000e-03  eta: 1:23:51  time: 21.420537  data_time: 21.190093  memory: 1990  loss: 0.465504  loss_kpt: 0.465504  acc_pose: 0.299512
+2023/06/04 20:42:59 - mmengine - INFO - Epoch(train)  [43][1/3]  lr: 4.000000e-03  eta: 1:23:35  time: 21.456538  data_time: 21.226187  memory: 3019  loss: 0.465148  loss_kpt: 0.465148  acc_pose: 0.279018
+2023/06/04 20:43:22 - mmengine - INFO - Epoch(train)  [43][2/3]  lr: 4.000000e-03  eta: 1:23:17  time: 21.644045  data_time: 21.412009  memory: 3019  loss: 0.469318  loss_kpt: 0.469318  acc_pose: 0.274979
+2023/06/04 20:43:37 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:43:37 - mmengine - INFO - Epoch(train)  [43][3/3]  lr: 4.000000e-03  eta: 1:22:43  time: 21.455465  data_time: 21.224976  memory: 1990  loss: 0.465086  loss_kpt: 0.465086  acc_pose: 0.286905
+2023/06/04 20:44:03 - mmengine - INFO - Epoch(train)  [44][1/3]  lr: 4.000000e-03  eta: 1:22:29  time: 21.466765  data_time: 21.236266  memory: 3019  loss: 0.464900  loss_kpt: 0.464900  acc_pose: 0.285478
+2023/06/04 20:44:27 - mmengine - INFO - Epoch(train)  [44][2/3]  lr: 4.000000e-03  eta: 1:22:13  time: 21.659350  data_time: 21.427281  memory: 3019  loss: 0.468616  loss_kpt: 0.468616  acc_pose: 0.271577
+2023/06/04 20:44:42 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:44:42 - mmengine - INFO - Epoch(train)  [44][3/3]  lr: 4.000000e-03  eta: 1:21:40  time: 21.453434  data_time: 21.222889  memory: 1990  loss: 0.464954  loss_kpt: 0.464954  acc_pose: 0.195452
+2023/06/04 20:45:07 - mmengine - INFO - Epoch(train)  [45][1/3]  lr: 4.000000e-03  eta: 1:21:25  time: 21.436843  data_time: 21.205949  memory: 3019  loss: 0.464266  loss_kpt: 0.464266  acc_pose: 0.257594
+2023/06/04 20:45:31 - mmengine - INFO - Epoch(train)  [45][2/3]  lr: 4.000000e-03  eta: 1:21:08  time: 21.635787  data_time: 21.403324  memory: 3019  loss: 0.468314  loss_kpt: 0.468314  acc_pose: 0.260783
+2023/06/04 20:45:46 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:45:46 - mmengine - INFO - Epoch(train)  [45][3/3]  lr: 4.000000e-03  eta: 1:20:35  time: 21.461385  data_time: 21.230595  memory: 1990  loss: 0.464458  loss_kpt: 0.464458  acc_pose: 0.238095
+2023/06/04 20:46:12 - mmengine - INFO - Epoch(train)  [46][1/3]  lr: 4.000000e-03  eta: 1:20:20  time: 21.483128  data_time: 21.252363  memory: 3019  loss: 0.463960  loss_kpt: 0.463960  acc_pose: 0.232887
+2023/06/04 20:46:38 - mmengine - INFO - Epoch(train)  [46][2/3]  lr: 4.000000e-03  eta: 1:20:07  time: 21.723556  data_time: 21.490909  memory: 3019  loss: 0.467710  loss_kpt: 0.467710  acc_pose: 0.280943
+2023/06/04 20:46:53 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:46:53 - mmengine - INFO - Epoch(train)  [46][3/3]  lr: 4.000000e-03  eta: 1:19:34  time: 21.535220  data_time: 21.304330  memory: 1990  loss: 0.463569  loss_kpt: 0.463569  acc_pose: 0.259524
+2023/06/04 20:47:17 - mmengine - INFO - Epoch(train)  [47][1/3]  lr: 4.000000e-03  eta: 1:19:17  time: 21.535792  data_time: 21.304996  memory: 3019  loss: 0.463427  loss_kpt: 0.463427  acc_pose: 0.272321
+2023/06/04 20:47:40 - mmengine - INFO - Epoch(train)  [47][2/3]  lr: 4.000000e-03  eta: 1:18:58  time: 21.678663  data_time: 21.446289  memory: 3019  loss: 0.467315  loss_kpt: 0.467315  acc_pose: 0.298493
+2023/06/04 20:47:56 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:47:56 - mmengine - INFO - Epoch(train)  [47][3/3]  lr: 4.000000e-03  eta: 1:18:27  time: 21.482511  data_time: 21.251629  memory: 1990  loss: 0.463433  loss_kpt: 0.463433  acc_pose: 0.238531
+2023/06/04 20:48:20 - mmengine - INFO - Epoch(train)  [48][1/3]  lr: 4.000000e-03  eta: 1:18:10  time: 21.467490  data_time: 21.236607  memory: 3019  loss: 0.463555  loss_kpt: 0.463555  acc_pose: 0.240599
+2023/06/04 20:48:44 - mmengine - INFO - Epoch(train)  [48][2/3]  lr: 4.000000e-03  eta: 1:17:52  time: 21.609448  data_time: 21.376963  memory: 3019  loss: 0.466770  loss_kpt: 0.466770  acc_pose: 0.292411
+2023/06/04 20:48:59 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:48:59 - mmengine - INFO - Epoch(train)  [48][3/3]  lr: 4.000000e-03  eta: 1:17:21  time: 21.404108  data_time: 21.173059  memory: 1990  loss: 0.462552  loss_kpt: 0.462552  acc_pose: 0.270421
+2023/06/04 20:49:24 - mmengine - INFO - Epoch(train)  [49][1/3]  lr: 4.000000e-03  eta: 1:17:04  time: 21.378420  data_time: 21.147688  memory: 3019  loss: 0.462983  loss_kpt: 0.462983  acc_pose: 0.262873
+2023/06/04 20:49:48 - mmengine - INFO - Epoch(train)  [49][2/3]  lr: 4.000000e-03  eta: 1:16:46  time: 21.543695  data_time: 21.311229  memory: 3019  loss: 0.466688  loss_kpt: 0.466688  acc_pose: 0.280506
+2023/06/04 20:50:04 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:50:04 - mmengine - INFO - Epoch(train)  [49][3/3]  lr: 4.000000e-03  eta: 1:16:17  time: 21.317932  data_time: 21.086920  memory: 1990  loss: 0.463304  loss_kpt: 0.463304  acc_pose: 0.240476
+2023/06/04 20:50:29 - mmengine - INFO - Epoch(train)  [50][1/3]  lr: 4.000000e-03  eta: 1:16:00  time: 21.327332  data_time: 21.096275  memory: 3019  loss: 0.463620  loss_kpt: 0.463620  acc_pose: 0.236607
+2023/06/04 20:50:53 - mmengine - INFO - Epoch(train)  [50][2/3]  lr: 4.000000e-03  eta: 1:15:43  time: 21.521946  data_time: 21.289183  memory: 3019  loss: 0.466940  loss_kpt: 0.466940  acc_pose: 0.242063
+2023/06/04 20:51:07 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:51:07 - mmengine - INFO - Epoch(train)  [50][3/3]  lr: 4.000000e-03  eta: 1:15:11  time: 21.308891  data_time: 21.078106  memory: 1990  loss: 0.463069  loss_kpt: 0.463069  acc_pose: 0.248810
+2023/06/04 20:51:07 - mmengine - INFO - Saving checkpoint at 50 epochs
+2023/06/04 20:51:18 - mmengine - INFO - Epoch(val)  [50][1/6]    eta: 0:00:10  time: 1.829280  data_time: 1.791456  memory: 180  
+2023/06/04 20:51:20 - mmengine - INFO - Epoch(val)  [50][2/6]    eta: 0:00:08  time: 1.837133  data_time: 1.799381  memory: 180  
+2023/06/04 20:51:22 - mmengine - INFO - Epoch(val)  [50][3/6]    eta: 0:00:06  time: 1.843517  data_time: 1.805748  memory: 180  
+2023/06/04 20:51:24 - mmengine - INFO - Epoch(val)  [50][4/6]    eta: 0:00:04  time: 1.850546  data_time: 1.812781  memory: 180  
+2023/06/04 20:51:26 - mmengine - INFO - Epoch(val)  [50][5/6]    eta: 0:00:02  time: 1.857879  data_time: 1.820086  memory: 180  
+2023/06/04 20:51:27 - mmengine - INFO - Epoch(val)  [50][6/6]    eta: 0:00:00  time: 1.814200  data_time: 1.776554  memory: 128  
+2023/06/04 20:51:27 - mmengine - INFO - Evaluating CocoMetric...
+2023/06/04 20:51:27 - mmengine - INFO - Evaluating PCKAccuracy (normalized by ``"bbox_size"``)...
+2023/06/04 20:51:27 - mmengine - INFO - Evaluating AUC...
+2023/06/04 20:51:27 - mmengine - INFO - Evaluating NME...
+2023/06/04 20:51:27 - mmengine - INFO - Epoch(val) [50][6/6]    coco/AP: 0.000428  coco/AP .5: 0.004284  coco/AP .75: 0.000000  coco/AP (M): -1.000000  coco/AP (L): 0.000428  coco/AR: 0.004762  coco/AR .5: 0.047619  coco/AR .75: 0.000000  coco/AR (M): -1.000000  coco/AR (L): 0.004762  PCK: 0.323129  AUC: 0.010998  NME: 0.237411  data_time: 1.589858  time: 1.626486
+2023/06/04 20:51:52 - mmengine - INFO - Epoch(train)  [51][1/3]  lr: 4.000000e-03  eta: 1:14:55  time: 21.315967  data_time: 21.085073  memory: 3019  loss: 0.463068  loss_kpt: 0.463068  acc_pose: 0.279183
+2023/06/04 20:52:16 - mmengine - INFO - Epoch(train)  [51][2/3]  lr: 4.000000e-03  eta: 1:14:37  time: 21.485235  data_time: 21.252666  memory: 3019  loss: 0.467115  loss_kpt: 0.467115  acc_pose: 0.245902
+2023/06/04 20:52:32 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:52:32 - mmengine - INFO - Epoch(train)  [51][3/3]  lr: 4.000000e-03  eta: 1:14:07  time: 21.295653  data_time: 21.064640  memory: 1990  loss: 0.463552  loss_kpt: 0.463552  acc_pose: 0.308639
+2023/06/04 20:52:56 - mmengine - INFO - Epoch(train)  [52][1/3]  lr: 4.000000e-03  eta: 1:13:49  time: 21.302602  data_time: 21.071594  memory: 3019  loss: 0.463211  loss_kpt: 0.463211  acc_pose: 0.279160
+2023/06/04 20:53:20 - mmengine - INFO - Epoch(train)  [52][2/3]  lr: 4.000000e-03  eta: 1:13:31  time: 21.502749  data_time: 21.270115  memory: 3019  loss: 0.467147  loss_kpt: 0.467147  acc_pose: 0.288938
+2023/06/04 20:53:34 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:53:34 - mmengine - INFO - Epoch(train)  [52][3/3]  lr: 4.000000e-03  eta: 1:13:00  time: 21.274766  data_time: 21.043688  memory: 1990  loss: 0.463620  loss_kpt: 0.463620  acc_pose: 0.219674
+2023/06/04 20:53:59 - mmengine - INFO - Epoch(train)  [53][1/3]  lr: 4.000000e-03  eta: 1:12:43  time: 21.291820  data_time: 21.060681  memory: 3019  loss: 0.463249  loss_kpt: 0.463249  acc_pose: 0.271577
+2023/06/04 20:54:22 - mmengine - INFO - Epoch(train)  [53][2/3]  lr: 4.000000e-03  eta: 1:12:23  time: 21.475865  data_time: 21.243085  memory: 3019  loss: 0.466953  loss_kpt: 0.466953  acc_pose: 0.279904
+2023/06/04 20:54:37 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:54:37 - mmengine - INFO - Epoch(train)  [53][3/3]  lr: 4.000000e-03  eta: 1:11:53  time: 21.252955  data_time: 21.021930  memory: 1990  loss: 0.462581  loss_kpt: 0.462581  acc_pose: 0.256349
+2023/06/04 20:55:01 - mmengine - INFO - Epoch(train)  [54][1/3]  lr: 4.000000e-03  eta: 1:11:36  time: 21.249509  data_time: 21.018530  memory: 3019  loss: 0.462414  loss_kpt: 0.462414  acc_pose: 0.240327
+2023/06/04 20:55:28 - mmengine - INFO - Epoch(train)  [54][2/3]  lr: 4.000000e-03  eta: 1:11:20  time: 21.468070  data_time: 21.235417  memory: 3019  loss: 0.465839  loss_kpt: 0.465839  acc_pose: 0.259153
+2023/06/04 20:55:43 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:55:43 - mmengine - INFO - Epoch(train)  [54][3/3]  lr: 4.000000e-03  eta: 1:10:51  time: 21.229120  data_time: 20.998138  memory: 1990  loss: 0.461660  loss_kpt: 0.461660  acc_pose: 0.261905
+2023/06/04 20:56:08 - mmengine - INFO - Epoch(train)  [55][1/3]  lr: 4.000000e-03  eta: 1:10:34  time: 21.292557  data_time: 21.061451  memory: 3019  loss: 0.461772  loss_kpt: 0.461772  acc_pose: 0.246280
+2023/06/04 20:56:33 - mmengine - INFO - Epoch(train)  [55][2/3]  lr: 4.000000e-03  eta: 1:10:16  time: 21.498212  data_time: 21.265449  memory: 3019  loss: 0.465469  loss_kpt: 0.465469  acc_pose: 0.264503
+2023/06/04 20:56:48 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:56:48 - mmengine - INFO - Epoch(train)  [55][3/3]  lr: 4.000000e-03  eta: 1:09:47  time: 21.294115  data_time: 21.062797  memory: 1990  loss: 0.461986  loss_kpt: 0.461986  acc_pose: 0.285714
+2023/06/04 20:57:13 - mmengine - INFO - Epoch(train)  [56][1/3]  lr: 4.000000e-03  eta: 1:09:30  time: 21.314998  data_time: 21.083658  memory: 3019  loss: 0.461479  loss_kpt: 0.461479  acc_pose: 0.254618
+2023/06/04 20:57:36 - mmengine - INFO - Epoch(train)  [56][2/3]  lr: 4.000000e-03  eta: 1:09:10  time: 21.434258  data_time: 21.201404  memory: 3019  loss: 0.465906  loss_kpt: 0.465906  acc_pose: 0.264397
+2023/06/04 20:57:50 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:57:50 - mmengine - INFO - Epoch(train)  [56][3/3]  lr: 4.000000e-03  eta: 1:08:40  time: 21.250941  data_time: 21.019730  memory: 1990  loss: 0.461758  loss_kpt: 0.461758  acc_pose: 0.285714
+2023/06/04 20:58:16 - mmengine - INFO - Epoch(train)  [57][1/3]  lr: 4.000000e-03  eta: 1:08:23  time: 21.272866  data_time: 21.041660  memory: 3019  loss: 0.462308  loss_kpt: 0.462308  acc_pose: 0.247312
+2023/06/04 20:58:40 - mmengine - INFO - Epoch(train)  [57][2/3]  lr: 4.000000e-03  eta: 1:08:05  time: 21.472549  data_time: 21.239832  memory: 3019  loss: 0.465857  loss_kpt: 0.465857  acc_pose: 0.300052
+2023/06/04 20:58:54 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:58:54 - mmengine - INFO - Epoch(train)  [57][3/3]  lr: 4.000000e-03  eta: 1:07:35  time: 21.267609  data_time: 21.036637  memory: 1990  loss: 0.461313  loss_kpt: 0.461313  acc_pose: 0.330250
+2023/06/04 20:59:21 - mmengine - INFO - Epoch(train)  [58][1/3]  lr: 4.000000e-03  eta: 1:07:20  time: 21.322701  data_time: 21.091819  memory: 3019  loss: 0.461888  loss_kpt: 0.461888  acc_pose: 0.240327
+2023/06/04 20:59:45 - mmengine - INFO - Epoch(train)  [58][2/3]  lr: 4.000000e-03  eta: 1:07:01  time: 21.490129  data_time: 21.257795  memory: 3019  loss: 0.465360  loss_kpt: 0.465360  acc_pose: 0.306099
+2023/06/04 20:59:59 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 20:59:59 - mmengine - INFO - Epoch(train)  [58][3/3]  lr: 4.000000e-03  eta: 1:06:32  time: 21.315115  data_time: 21.084449  memory: 1990  loss: 0.461704  loss_kpt: 0.461704  acc_pose: 0.239286
+2023/06/04 21:00:23 - mmengine - INFO - Epoch(train)  [59][1/3]  lr: 4.000000e-03  eta: 1:06:13  time: 21.279806  data_time: 21.049215  memory: 3019  loss: 0.461790  loss_kpt: 0.461790  acc_pose: 0.284817
+2023/06/04 21:00:48 - mmengine - INFO - Epoch(train)  [59][2/3]  lr: 4.000000e-03  eta: 1:05:55  time: 21.478021  data_time: 21.245803  memory: 3019  loss: 0.466084  loss_kpt: 0.466084  acc_pose: 0.273810
+2023/06/04 21:01:04 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:01:04 - mmengine - INFO - Epoch(train)  [59][3/3]  lr: 4.000000e-03  eta: 1:05:28  time: 21.324509  data_time: 21.093831  memory: 1990  loss: 0.462038  loss_kpt: 0.462038  acc_pose: 0.272619
+2023/06/04 21:01:29 - mmengine - INFO - Epoch(train)  [60][1/3]  lr: 4.000000e-03  eta: 1:05:10  time: 21.347275  data_time: 21.116741  memory: 3019  loss: 0.461792  loss_kpt: 0.461792  acc_pose: 0.278652
+2023/06/04 21:01:54 - mmengine - INFO - Epoch(train)  [60][2/3]  lr: 4.000000e-03  eta: 1:04:52  time: 21.547114  data_time: 21.315015  memory: 3019  loss: 0.466110  loss_kpt: 0.466110  acc_pose: 0.244166
+2023/06/04 21:02:10 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:02:10 - mmengine - INFO - Epoch(train)  [60][3/3]  lr: 4.000000e-03  eta: 1:04:25  time: 21.345620  data_time: 21.115182  memory: 1990  loss: 0.462038  loss_kpt: 0.462038  acc_pose: 0.289286
+2023/06/04 21:02:10 - mmengine - INFO - Saving checkpoint at 60 epochs
+2023/06/04 21:02:20 - mmengine - INFO - Epoch(val)  [60][1/6]    eta: 0:00:10  time: 1.824398  data_time: 1.786740  memory: 180  
+2023/06/04 21:02:22 - mmengine - INFO - Epoch(val)  [60][2/6]    eta: 0:00:08  time: 1.830830  data_time: 1.793182  memory: 180  
+2023/06/04 21:02:24 - mmengine - INFO - Epoch(val)  [60][3/6]    eta: 0:00:06  time: 1.835979  data_time: 1.798354  memory: 180  
+2023/06/04 21:02:26 - mmengine - INFO - Epoch(val)  [60][4/6]    eta: 0:00:04  time: 1.841812  data_time: 1.804176  memory: 180  
+2023/06/04 21:02:28 - mmengine - INFO - Epoch(val)  [60][5/6]    eta: 0:00:02  time: 1.848055  data_time: 1.810406  memory: 180  
+2023/06/04 21:02:29 - mmengine - INFO - Epoch(val)  [60][6/6]    eta: 0:00:00  time: 1.811762  data_time: 1.774224  memory: 128  
+2023/06/04 21:02:29 - mmengine - INFO - Evaluating CocoMetric...
+2023/06/04 21:02:29 - mmengine - INFO - Evaluating PCKAccuracy (normalized by ``"bbox_size"``)...
+2023/06/04 21:02:29 - mmengine - INFO - Evaluating AUC...
+2023/06/04 21:02:29 - mmengine - INFO - Evaluating NME...
+2023/06/04 21:02:29 - mmengine - INFO - Epoch(val) [60][6/6]    coco/AP: 0.000000  coco/AP .5: 0.000000  coco/AP .75: 0.000000  coco/AP (M): -1.000000  coco/AP (L): 0.000000  coco/AR: 0.000000  coco/AR .5: 0.000000  coco/AR .75: 0.000000  coco/AR (M): -1.000000  coco/AR (L): 0.000000  PCK: 0.349206  AUC: 0.010091  NME: 0.241053  data_time: 1.584226  time: 1.620706
+2023/06/04 21:02:29 - mmengine - INFO - The previous best checkpoint /hy-tmp/mmpose/work_dirs/rtmpose-s-ear/best_PCK_epoch_40.pth is removed
+2023/06/04 21:02:37 - mmengine - INFO - The best checkpoint with 0.3492 PCK at 60 epoch is saved to best_PCK_epoch_60.pth.
+2023/06/04 21:03:02 - mmengine - INFO - Epoch(train)  [61][1/3]  lr: 4.000000e-03  eta: 1:04:06  time: 21.349095  data_time: 21.118723  memory: 3019  loss: 0.462196  loss_kpt: 0.462196  acc_pose: 0.265625
+2023/06/04 21:03:26 - mmengine - INFO - Epoch(train)  [61][2/3]  lr: 3.999711e-03  eta: 1:03:47  time: 21.534070  data_time: 21.302254  memory: 3019  loss: 0.466000  loss_kpt: 0.466000  acc_pose: 0.279254
+2023/06/04 21:03:41 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:03:42 - mmengine - INFO - Epoch(train)  [61][3/3]  lr: 3.998843e-03  eta: 1:03:20  time: 21.339446  data_time: 21.109617  memory: 1990  loss: 0.461666  loss_kpt: 0.461666  acc_pose: 0.266667
+2023/06/04 21:04:07 - mmengine - INFO - Epoch(train)  [62][1/3]  lr: 3.997396e-03  eta: 1:03:02  time: 21.367794  data_time: 21.137709  memory: 3019  loss: 0.461561  loss_kpt: 0.461561  acc_pose: 0.301339
+2023/06/04 21:04:32 - mmengine - INFO - Epoch(train)  [62][2/3]  lr: 3.995372e-03  eta: 1:02:44  time: 21.564229  data_time: 21.332589  memory: 3019  loss: 0.466137  loss_kpt: 0.466137  acc_pose: 0.206337
+2023/06/04 21:04:47 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:04:47 - mmengine - INFO - Epoch(train)  [62][3/3]  lr: 3.992770e-03  eta: 1:02:16  time: 21.354823  data_time: 21.124791  memory: 1990  loss: 0.461788  loss_kpt: 0.461788  acc_pose: 0.304762
+2023/06/04 21:05:11 - mmengine - INFO - Epoch(train)  [63][1/3]  lr: 3.989592e-03  eta: 1:01:57  time: 21.306315  data_time: 21.076542  memory: 3019  loss: 0.461523  loss_kpt: 0.461523  acc_pose: 0.274683
+2023/06/04 21:05:35 - mmengine - INFO - Epoch(train)  [63][2/3]  lr: 3.985838e-03  eta: 1:01:38  time: 21.494462  data_time: 21.263173  memory: 3019  loss: 0.465375  loss_kpt: 0.465375  acc_pose: 0.265625
+2023/06/04 21:05:51 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:05:51 - mmengine - INFO - Epoch(train)  [63][3/3]  lr: 3.981509e-03  eta: 1:01:11  time: 21.322817  data_time: 21.093188  memory: 1990  loss: 0.461965  loss_kpt: 0.461965  acc_pose: 0.236081
+2023/06/04 21:06:15 - mmengine - INFO - Epoch(train)  [64][1/3]  lr: 3.976608e-03  eta: 1:00:53  time: 21.359664  data_time: 21.129963  memory: 3019  loss: 0.461494  loss_kpt: 0.461494  acc_pose: 0.300265
+2023/06/04 21:06:40 - mmengine - INFO - Epoch(train)  [64][2/3]  lr: 3.971135e-03  eta: 1:00:34  time: 21.544341  data_time: 21.313179  memory: 3019  loss: 0.465312  loss_kpt: 0.465312  acc_pose: 0.255952
+2023/06/04 21:06:55 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:06:55 - mmengine - INFO - Epoch(train)  [64][3/3]  lr: 3.965092e-03  eta: 1:00:07  time: 21.349901  data_time: 21.120539  memory: 1990  loss: 0.460835  loss_kpt: 0.460835  acc_pose: 0.264286
+2023/06/04 21:07:22 - mmengine - INFO - Epoch(train)  [65][1/3]  lr: 3.958480e-03  eta: 0:59:50  time: 21.409598  data_time: 21.180321  memory: 3019  loss: 0.460652  loss_kpt: 0.460652  acc_pose: 0.314992
+2023/06/04 21:07:46 - mmengine - INFO - Epoch(train)  [65][2/3]  lr: 3.951303e-03  eta: 0:59:31  time: 21.590438  data_time: 21.359865  memory: 3019  loss: 0.464442  loss_kpt: 0.464442  acc_pose: 0.288690
+2023/06/04 21:08:01 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:08:01 - mmengine - INFO - Epoch(train)  [65][3/3]  lr: 3.943562e-03  eta: 0:59:04  time: 21.398071  data_time: 21.169275  memory: 1990  loss: 0.460528  loss_kpt: 0.460528  acc_pose: 0.251190
+2023/06/04 21:08:27 - mmengine - INFO - Epoch(train)  [66][1/3]  lr: 3.935259e-03  eta: 0:58:46  time: 21.434396  data_time: 21.205826  memory: 3019  loss: 0.460715  loss_kpt: 0.460715  acc_pose: 0.276431
+2023/06/04 21:08:51 - mmengine - INFO - Epoch(train)  [66][2/3]  lr: 3.926397e-03  eta: 0:58:27  time: 21.593558  data_time: 21.363638  memory: 3019  loss: 0.464402  loss_kpt: 0.464402  acc_pose: 0.253720
+2023/06/04 21:09:07 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:09:07 - mmengine - INFO - Epoch(train)  [66][3/3]  lr: 3.916979e-03  eta: 0:58:01  time: 21.414947  data_time: 21.186545  memory: 1990  loss: 0.460707  loss_kpt: 0.460707  acc_pose: 0.210714
+2023/06/04 21:09:30 - mmengine - INFO - Epoch(train)  [67][1/3]  lr: 3.907007e-03  eta: 0:57:40  time: 21.387373  data_time: 21.159174  memory: 3019  loss: 0.460702  loss_kpt: 0.460702  acc_pose: 0.264137
+2023/06/04 21:09:54 - mmengine - INFO - Epoch(train)  [67][2/3]  lr: 3.896485e-03  eta: 0:57:21  time: 21.591618  data_time: 21.362040  memory: 3019  loss: 0.464659  loss_kpt: 0.464659  acc_pose: 0.270833
+2023/06/04 21:10:10 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:10:10 - mmengine - INFO - Epoch(train)  [67][3/3]  lr: 3.885416e-03  eta: 0:56:55  time: 21.396044  data_time: 21.168114  memory: 1990  loss: 0.460345  loss_kpt: 0.460345  acc_pose: 0.292216
+2023/06/04 21:10:34 - mmengine - INFO - Epoch(train)  [68][1/3]  lr: 3.873803e-03  eta: 0:56:36  time: 21.404919  data_time: 21.177046  memory: 3019  loss: 0.459690  loss_kpt: 0.459690  acc_pose: 0.297135
+2023/06/04 21:10:58 - mmengine - INFO - Epoch(train)  [68][2/3]  lr: 3.861649e-03  eta: 0:56:16  time: 21.569886  data_time: 21.340473  memory: 3019  loss: 0.463205  loss_kpt: 0.463205  acc_pose: 0.276786
+2023/06/04 21:11:14 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:11:14 - mmengine - INFO - Epoch(train)  [68][3/3]  lr: 3.848959e-03  eta: 0:55:50  time: 21.404201  data_time: 21.176408  memory: 1990  loss: 0.458904  loss_kpt: 0.458904  acc_pose: 0.289286
+2023/06/04 21:11:39 - mmengine - INFO - Epoch(train)  [69][1/3]  lr: 3.835736e-03  eta: 0:55:31  time: 21.419718  data_time: 21.191925  memory: 3019  loss: 0.459036  loss_kpt: 0.459036  acc_pose: 0.249256
+2023/06/04 21:12:04 - mmengine - INFO - Epoch(train)  [69][2/3]  lr: 3.821985e-03  eta: 0:55:13  time: 21.643799  data_time: 21.414459  memory: 3019  loss: 0.462440  loss_kpt: 0.462440  acc_pose: 0.271755
+2023/06/04 21:12:18 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:12:18 - mmengine - INFO - Epoch(train)  [69][3/3]  lr: 3.807709e-03  eta: 0:54:45  time: 21.414452  data_time: 21.186745  memory: 1990  loss: 0.458639  loss_kpt: 0.458639  acc_pose: 0.276435
+2023/06/04 21:12:42 - mmengine - INFO - Epoch(train)  [70][1/3]  lr: 3.792912e-03  eta: 0:54:26  time: 21.445931  data_time: 21.218238  memory: 3019  loss: 0.458896  loss_kpt: 0.458896  acc_pose: 0.248512
+2023/06/04 21:13:06 - mmengine - INFO - Epoch(train)  [70][2/3]  lr: 3.777600e-03  eta: 0:54:06  time: 21.619061  data_time: 21.389914  memory: 3019  loss: 0.462596  loss_kpt: 0.462596  acc_pose: 0.284970
+2023/06/04 21:13:21 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:13:21 - mmengine - INFO - Epoch(train)  [70][3/3]  lr: 3.761777e-03  eta: 0:53:40  time: 21.440186  data_time: 21.212515  memory: 1990  loss: 0.458316  loss_kpt: 0.458316  acc_pose: 0.300305
+2023/06/04 21:13:21 - mmengine - INFO - Saving checkpoint at 70 epochs
+2023/06/04 21:13:32 - mmengine - INFO - Epoch(val)  [70][1/6]    eta: 0:00:10  time: 1.820697  data_time: 1.783127  memory: 180  
+2023/06/04 21:13:34 - mmengine - INFO - Epoch(val)  [70][2/6]    eta: 0:00:08  time: 1.826643  data_time: 1.788947  memory: 180  
+2023/06/04 21:13:36 - mmengine - INFO - Epoch(val)  [70][3/6]    eta: 0:00:06  time: 1.831424  data_time: 1.793755  memory: 180  
+2023/06/04 21:13:38 - mmengine - INFO - Epoch(val)  [70][4/6]    eta: 0:00:04  time: 1.838140  data_time: 1.800490  memory: 180  
+2023/06/04 21:13:40 - mmengine - INFO - Epoch(val)  [70][5/6]    eta: 0:00:02  time: 1.843924  data_time: 1.806271  memory: 180  
+2023/06/04 21:13:41 - mmengine - INFO - Epoch(val)  [70][6/6]    eta: 0:00:00  time: 1.812994  data_time: 1.775510  memory: 128  
+2023/06/04 21:13:41 - mmengine - INFO - Evaluating CocoMetric...
+2023/06/04 21:13:41 - mmengine - INFO - Evaluating PCKAccuracy (normalized by ``"bbox_size"``)...
+2023/06/04 21:13:41 - mmengine - INFO - Evaluating AUC...
+2023/06/04 21:13:41 - mmengine - INFO - Evaluating NME...
+2023/06/04 21:13:41 - mmengine - INFO - Epoch(val) [70][6/6]    coco/AP: 0.000000  coco/AP .5: 0.000000  coco/AP .75: 0.000000  coco/AP (M): -1.000000  coco/AP (L): 0.000000  coco/AR: 0.000000  coco/AR .5: 0.000000  coco/AR .75: 0.000000  coco/AR (M): -1.000000  coco/AR (L): 0.000000  PCK: 0.336735  AUC: 0.011224  NME: 0.234740  data_time: 1.601032  time: 1.637690
+2023/06/04 21:14:07 - mmengine - INFO - Epoch(train)  [71][1/3]  lr: 3.745448e-03  eta: 0:53:22  time: 21.436758  data_time: 21.208958  memory: 3019  loss: 0.457873  loss_kpt: 0.457873  acc_pose: 0.288690
+2023/06/04 21:14:30 - mmengine - INFO - Epoch(train)  [71][2/3]  lr: 3.728618e-03  eta: 0:53:02  time: 21.605951  data_time: 21.376527  memory: 3019  loss: 0.461016  loss_kpt: 0.461016  acc_pose: 0.309807
+2023/06/04 21:14:45 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:14:45 - mmengine - INFO - Epoch(train)  [71][3/3]  lr: 3.711291e-03  eta: 0:52:35  time: 21.387912  data_time: 21.160283  memory: 1990  loss: 0.456465  loss_kpt: 0.456465  acc_pose: 0.330952
+2023/06/04 21:15:11 - mmengine - INFO - Epoch(train)  [72][1/3]  lr: 3.693474e-03  eta: 0:52:17  time: 21.415211  data_time: 21.187500  memory: 3019  loss: 0.456368  loss_kpt: 0.456368  acc_pose: 0.283683
+2023/06/04 21:15:37 - mmengine - INFO - Epoch(train)  [72][2/3]  lr: 3.675171e-03  eta: 0:51:59  time: 21.640118  data_time: 21.410949  memory: 3019  loss: 0.460158  loss_kpt: 0.460158  acc_pose: 0.250189
+2023/06/04 21:15:51 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:15:51 - mmengine - INFO - Epoch(train)  [72][3/3]  lr: 3.656389e-03  eta: 0:51:32  time: 21.405707  data_time: 21.178244  memory: 1990  loss: 0.456342  loss_kpt: 0.456342  acc_pose: 0.244486
+2023/06/04 21:16:16 - mmengine - INFO - Epoch(train)  [73][1/3]  lr: 3.637132e-03  eta: 0:51:13  time: 21.455289  data_time: 21.227724  memory: 3019  loss: 0.456047  loss_kpt: 0.456047  acc_pose: 0.275298
+2023/06/04 21:16:40 - mmengine - INFO - Epoch(train)  [73][2/3]  lr: 3.617407e-03  eta: 0:50:54  time: 21.658389  data_time: 21.429161  memory: 3019  loss: 0.459790  loss_kpt: 0.459790  acc_pose: 0.284226
+2023/06/04 21:16:56 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:16:56 - mmengine - INFO - Epoch(train)  [73][3/3]  lr: 3.597220e-03  eta: 0:50:28  time: 21.464820  data_time: 21.237170  memory: 1990  loss: 0.455672  loss_kpt: 0.455672  acc_pose: 0.239621
+2023/06/04 21:17:22 - mmengine - INFO - Epoch(train)  [74][1/3]  lr: 3.576577e-03  eta: 0:50:10  time: 21.503290  data_time: 21.275590  memory: 3019  loss: 0.455834  loss_kpt: 0.455834  acc_pose: 0.253720
+2023/06/04 21:17:49 - mmengine - INFO - Epoch(train)  [74][2/3]  lr: 3.555484e-03  eta: 0:49:52  time: 21.760639  data_time: 21.531352  memory: 3019  loss: 0.459825  loss_kpt: 0.459825  acc_pose: 0.250177
+2023/06/04 21:18:05 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:18:05 - mmengine - INFO - Epoch(train)  [74][3/3]  lr: 3.533948e-03  eta: 0:49:27  time: 21.547670  data_time: 21.320071  memory: 1990  loss: 0.455129  loss_kpt: 0.455129  acc_pose: 0.311081
+2023/06/04 21:18:30 - mmengine - INFO - Epoch(train)  [75][1/3]  lr: 3.511975e-03  eta: 0:49:07  time: 21.561704  data_time: 21.334134  memory: 3019  loss: 0.455312  loss_kpt: 0.455312  acc_pose: 0.282738
+2023/06/04 21:18:56 - mmengine - INFO - Epoch(train)  [75][2/3]  lr: 3.489572e-03  eta: 0:48:49  time: 21.792162  data_time: 21.562766  memory: 3019  loss: 0.458955  loss_kpt: 0.458955  acc_pose: 0.263015
+2023/06/04 21:19:12 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:19:12 - mmengine - INFO - Epoch(train)  [75][3/3]  lr: 3.466746e-03  eta: 0:48:23  time: 21.625526  data_time: 21.397588  memory: 1990  loss: 0.454373  loss_kpt: 0.454373  acc_pose: 0.303571
+2023/06/04 21:19:36 - mmengine - INFO - Epoch(train)  [76][1/3]  lr: 3.443503e-03  eta: 0:48:04  time: 21.629534  data_time: 21.401367  memory: 3019  loss: 0.453664  loss_kpt: 0.453664  acc_pose: 0.298021
+2023/06/04 21:20:04 - mmengine - INFO - Epoch(train)  [76][2/3]  lr: 3.419851e-03  eta: 0:47:46  time: 21.842431  data_time: 21.612688  memory: 3019  loss: 0.457647  loss_kpt: 0.457647  acc_pose: 0.267302
+2023/06/04 21:20:19 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:20:19 - mmengine - INFO - Epoch(train)  [76][3/3]  lr: 3.395797e-03  eta: 0:47:21  time: 21.650437  data_time: 21.422267  memory: 1990  loss: 0.453310  loss_kpt: 0.453310  acc_pose: 0.316667
+2023/06/04 21:20:44 - mmengine - INFO - Epoch(train)  [77][1/3]  lr: 3.371348e-03  eta: 0:47:01  time: 21.656752  data_time: 21.428439  memory: 3019  loss: 0.452950  loss_kpt: 0.452950  acc_pose: 0.262791
+2023/06/04 21:21:08 - mmengine - INFO - Epoch(train)  [77][2/3]  lr: 3.346512e-03  eta: 0:46:41  time: 21.830677  data_time: 21.600682  memory: 3019  loss: 0.456308  loss_kpt: 0.456308  acc_pose: 0.318074
+2023/06/04 21:21:23 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:21:23 - mmengine - INFO - Epoch(train)  [77][3/3]  lr: 3.321296e-03  eta: 0:46:16  time: 21.634730  data_time: 21.406198  memory: 1990  loss: 0.452181  loss_kpt: 0.452181  acc_pose: 0.239286
+2023/06/04 21:21:49 - mmengine - INFO - Epoch(train)  [78][1/3]  lr: 3.295709e-03  eta: 0:45:56  time: 21.664133  data_time: 21.435447  memory: 3019  loss: 0.451569  loss_kpt: 0.451569  acc_pose: 0.269723
+2023/06/04 21:22:12 - mmengine - INFO - Epoch(train)  [78][2/3]  lr: 3.269757e-03  eta: 0:45:36  time: 21.816905  data_time: 21.586487  memory: 3019  loss: 0.455065  loss_kpt: 0.455065  acc_pose: 0.293155
+2023/06/04 21:22:28 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:22:28 - mmengine - INFO - Epoch(train)  [78][3/3]  lr: 3.243449e-03  eta: 0:45:11  time: 21.627444  data_time: 21.398758  memory: 1990  loss: 0.450946  loss_kpt: 0.450946  acc_pose: 0.278571
+2023/06/04 21:22:53 - mmengine - INFO - Epoch(train)  [79][1/3]  lr: 3.216792e-03  eta: 0:44:52  time: 21.626837  data_time: 21.398054  memory: 3019  loss: 0.449756  loss_kpt: 0.449756  acc_pose: 0.293367
+2023/06/04 21:23:17 - mmengine - INFO - Epoch(train)  [79][2/3]  lr: 3.189795e-03  eta: 0:44:31  time: 21.816088  data_time: 21.585607  memory: 3019  loss: 0.453205  loss_kpt: 0.453205  acc_pose: 0.280034
+2023/06/04 21:23:33 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:23:33 - mmengine - INFO - Epoch(train)  [79][3/3]  lr: 3.162467e-03  eta: 0:44:07  time: 21.658476  data_time: 21.429513  memory: 1990  loss: 0.449394  loss_kpt: 0.449394  acc_pose: 0.264286
+2023/06/04 21:23:58 - mmengine - INFO - Epoch(train)  [80][1/3]  lr: 3.134814e-03  eta: 0:43:47  time: 21.667596  data_time: 21.438591  memory: 3019  loss: 0.448925  loss_kpt: 0.448925  acc_pose: 0.275510
+2023/06/04 21:24:22 - mmengine - INFO - Epoch(train)  [80][2/3]  lr: 3.106847e-03  eta: 0:43:27  time: 21.845506  data_time: 21.614905  memory: 3019  loss: 0.451885  loss_kpt: 0.451885  acc_pose: 0.302284
+2023/06/04 21:24:37 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:24:37 - mmengine - INFO - Epoch(train)  [80][3/3]  lr: 3.078572e-03  eta: 0:43:02  time: 21.646172  data_time: 21.417220  memory: 1990  loss: 0.447920  loss_kpt: 0.447920  acc_pose: 0.280952
+2023/06/04 21:24:37 - mmengine - INFO - Saving checkpoint at 80 epochs
+2023/06/04 21:24:48 - mmengine - INFO - Epoch(val)  [80][1/6]    eta: 0:00:10  time: 1.820858  data_time: 1.783343  memory: 180  
+2023/06/04 21:24:50 - mmengine - INFO - Epoch(val)  [80][2/6]    eta: 0:00:08  time: 1.825924  data_time: 1.788404  memory: 180  
+2023/06/04 21:24:52 - mmengine - INFO - Epoch(val)  [80][3/6]    eta: 0:00:06  time: 1.830080  data_time: 1.792579  memory: 180  
+2023/06/04 21:24:54 - mmengine - INFO - Epoch(val)  [80][4/6]    eta: 0:00:04  time: 1.834866  data_time: 1.797333  memory: 180  
+2023/06/04 21:24:56 - mmengine - INFO - Epoch(val)  [80][5/6]    eta: 0:00:02  time: 1.839855  data_time: 1.802262  memory: 180  
+2023/06/04 21:24:57 - mmengine - INFO - Epoch(val)  [80][6/6]    eta: 0:00:00  time: 1.812898  data_time: 1.775430  memory: 128  
+2023/06/04 21:24:57 - mmengine - INFO - Evaluating CocoMetric...
+2023/06/04 21:24:57 - mmengine - INFO - Evaluating PCKAccuracy (normalized by ``"bbox_size"``)...
+2023/06/04 21:24:57 - mmengine - INFO - Evaluating AUC...
+2023/06/04 21:24:57 - mmengine - INFO - Evaluating NME...
+2023/06/04 21:24:57 - mmengine - INFO - Epoch(val) [80][6/6]    coco/AP: 0.001716  coco/AP .5: 0.009063  coco/AP .75: 0.000000  coco/AP (M): -1.000000  coco/AP (L): 0.001716  coco/AR: 0.014286  coco/AR .5: 0.071429  coco/AR .75: 0.000000  coco/AR (M): -1.000000  coco/AR (L): 0.014286  PCK: 0.353741  AUC: 0.007426  NME: 0.226130  data_time: 1.594789  time: 1.631175
+2023/06/04 21:24:57 - mmengine - INFO - The previous best checkpoint /hy-tmp/mmpose/work_dirs/rtmpose-s-ear/best_PCK_epoch_60.pth is removed
+2023/06/04 21:25:05 - mmengine - INFO - The best checkpoint with 0.3537 PCK at 80 epoch is saved to best_PCK_epoch_80.pth.
+2023/06/04 21:25:32 - mmengine - INFO - Epoch(train)  [81][1/3]  lr: 3.050000e-03  eta: 0:42:43  time: 21.683198  data_time: 21.454204  memory: 3019  loss: 0.447149  loss_kpt: 0.447149  acc_pose: 0.300194
+2023/06/04 21:25:56 - mmengine - INFO - Epoch(train)  [81][2/3]  lr: 3.021138e-03  eta: 0:42:23  time: 21.858013  data_time: 21.627117  memory: 3019  loss: 0.450997  loss_kpt: 0.450997  acc_pose: 0.287202
+2023/06/04 21:26:11 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:26:11 - mmengine - INFO - Epoch(train)  [81][3/3]  lr: 2.991996e-03  eta: 0:41:58  time: 21.639874  data_time: 21.410606  memory: 1990  loss: 0.447192  loss_kpt: 0.447192  acc_pose: 0.300000
+2023/06/04 21:26:35 - mmengine - INFO - Epoch(train)  [82][1/3]  lr: 2.962582e-03  eta: 0:41:38  time: 21.622319  data_time: 21.392797  memory: 3019  loss: 0.446907  loss_kpt: 0.446907  acc_pose: 0.280506
+2023/06/04 21:27:00 - mmengine - INFO - Epoch(train)  [82][2/3]  lr: 2.932905e-03  eta: 0:41:18  time: 21.834278  data_time: 21.603017  memory: 3019  loss: 0.450004  loss_kpt: 0.450004  acc_pose: 0.289659
+2023/06/04 21:27:16 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:27:16 - mmengine - INFO - Epoch(train)  [82][3/3]  lr: 2.902975e-03  eta: 0:40:54  time: 21.625477  data_time: 21.395770  memory: 1990  loss: 0.445597  loss_kpt: 0.445597  acc_pose: 0.276190
+2023/06/04 21:27:40 - mmengine - INFO - Epoch(train)  [83][1/3]  lr: 2.872800e-03  eta: 0:40:34  time: 21.638958  data_time: 21.409113  memory: 3019  loss: 0.444635  loss_kpt: 0.444635  acc_pose: 0.323661
+2023/06/04 21:28:03 - mmengine - INFO - Epoch(train)  [83][2/3]  lr: 2.842389e-03  eta: 0:40:12  time: 21.766050  data_time: 21.534678  memory: 3019  loss: 0.447688  loss_kpt: 0.447688  acc_pose: 0.276585
+2023/06/04 21:28:19 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:28:19 - mmengine - INFO - Epoch(train)  [83][3/3]  lr: 2.811753e-03  eta: 0:39:48  time: 21.624828  data_time: 21.394891  memory: 1990  loss: 0.443120  loss_kpt: 0.443120  acc_pose: 0.325000
+2023/06/04 21:28:43 - mmengine - INFO - Epoch(train)  [84][1/3]  lr: 2.780899e-03  eta: 0:39:28  time: 21.626863  data_time: 21.396773  memory: 3019  loss: 0.442542  loss_kpt: 0.442542  acc_pose: 0.263818
+2023/06/04 21:29:09 - mmengine - INFO - Epoch(train)  [84][2/3]  lr: 2.749838e-03  eta: 0:39:09  time: 21.836511  data_time: 21.604676  memory: 3019  loss: 0.447497  loss_kpt: 0.447497  acc_pose: 0.218518
+2023/06/04 21:29:23 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:29:23 - mmengine - INFO - Epoch(train)  [84][3/3]  lr: 2.718579e-03  eta: 0:38:44  time: 21.633638  data_time: 21.403415  memory: 1990  loss: 0.443382  loss_kpt: 0.443382  acc_pose: 0.338462
+2023/06/04 21:29:49 - mmengine - INFO - Epoch(train)  [85][1/3]  lr: 2.687132e-03  eta: 0:38:24  time: 21.660112  data_time: 21.429907  memory: 3019  loss: 0.443348  loss_kpt: 0.443348  acc_pose: 0.311012
+2023/06/04 21:30:14 - mmengine - INFO - Epoch(train)  [85][2/3]  lr: 2.655506e-03  eta: 0:38:04  time: 21.847982  data_time: 21.616174  memory: 3019  loss: 0.446887  loss_kpt: 0.446887  acc_pose: 0.319350
+2023/06/04 21:30:29 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:30:29 - mmengine - INFO - Epoch(train)  [85][3/3]  lr: 2.623711e-03  eta: 0:37:40  time: 21.663267  data_time: 21.433016  memory: 1990  loss: 0.442322  loss_kpt: 0.442322  acc_pose: 0.306777
+2023/06/04 21:30:55 - mmengine - INFO - Epoch(train)  [86][1/3]  lr: 2.591756e-03  eta: 0:37:20  time: 21.665284  data_time: 21.435016  memory: 3019  loss: 0.441475  loss_kpt: 0.441475  acc_pose: 0.295387
+2023/06/04 21:31:20 - mmengine - INFO - Epoch(train)  [86][2/3]  lr: 2.559652e-03  eta: 0:37:00  time: 21.897385  data_time: 21.665561  memory: 3019  loss: 0.444683  loss_kpt: 0.444683  acc_pose: 0.323944
+2023/06/04 21:31:35 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:31:35 - mmengine - INFO - Epoch(train)  [86][3/3]  lr: 2.527407e-03  eta: 0:36:36  time: 21.705260  data_time: 21.475101  memory: 1990  loss: 0.440165  loss_kpt: 0.440165  acc_pose: 0.304762
+2023/06/04 21:32:01 - mmengine - INFO - Epoch(train)  [87][1/3]  lr: 2.495032e-03  eta: 0:36:16  time: 21.757159  data_time: 21.526989  memory: 3019  loss: 0.439337  loss_kpt: 0.439337  acc_pose: 0.302083
+2023/06/04 21:32:25 - mmengine - INFO - Epoch(train)  [87][2/3]  lr: 2.462537e-03  eta: 0:35:55  time: 21.921643  data_time: 21.690081  memory: 3019  loss: 0.443188  loss_kpt: 0.443188  acc_pose: 0.247319
+2023/06/04 21:32:40 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:32:40 - mmengine - INFO - Epoch(train)  [87][3/3]  lr: 2.429932e-03  eta: 0:35:31  time: 21.703281  data_time: 21.473566  memory: 1990  loss: 0.439113  loss_kpt: 0.439113  acc_pose: 0.307143
+2023/06/04 21:33:05 - mmengine - INFO - Epoch(train)  [88][1/3]  lr: 2.397225e-03  eta: 0:35:11  time: 21.739060  data_time: 21.509362  memory: 3019  loss: 0.438909  loss_kpt: 0.438909  acc_pose: 0.324546
+2023/06/04 21:33:30 - mmengine - INFO - Epoch(train)  [88][2/3]  lr: 2.364429e-03  eta: 0:34:51  time: 21.944176  data_time: 21.712893  memory: 3019  loss: 0.442574  loss_kpt: 0.442574  acc_pose: 0.284970
+2023/06/04 21:33:46 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:33:46 - mmengine - INFO - Epoch(train)  [88][3/3]  lr: 2.331552e-03  eta: 0:34:27  time: 21.747179  data_time: 21.517527  memory: 1990  loss: 0.437929  loss_kpt: 0.437929  acc_pose: 0.373077
+2023/06/04 21:34:10 - mmengine - INFO - Epoch(train)  [89][1/3]  lr: 2.298604e-03  eta: 0:34:07  time: 21.709515  data_time: 21.479921  memory: 3019  loss: 0.437121  loss_kpt: 0.437121  acc_pose: 0.322373
+2023/06/04 21:34:34 - mmengine - INFO - Epoch(train)  [89][2/3]  lr: 2.265596e-03  eta: 0:33:46  time: 21.911452  data_time: 21.680221  memory: 3019  loss: 0.439894  loss_kpt: 0.439894  acc_pose: 0.320224
+2023/06/04 21:34:50 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:34:50 - mmengine - INFO - Epoch(train)  [89][3/3]  lr: 2.232537e-03  eta: 0:33:22  time: 21.721432  data_time: 21.491887  memory: 1990  loss: 0.435502  loss_kpt: 0.435502  acc_pose: 0.323810
+2023/06/04 21:35:15 - mmengine - INFO - Epoch(train)  [90][1/3]  lr: 2.199438e-03  eta: 0:33:02  time: 21.741464  data_time: 21.511921  memory: 3019  loss: 0.435319  loss_kpt: 0.435319  acc_pose: 0.275137
+2023/06/04 21:35:39 - mmengine - INFO - Epoch(train)  [90][2/3]  lr: 2.166309e-03  eta: 0:32:41  time: 21.898492  data_time: 21.667376  memory: 3019  loss: 0.438344  loss_kpt: 0.438344  acc_pose: 0.336310
+2023/06/04 21:35:55 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:35:55 - mmengine - INFO - Epoch(train)  [90][3/3]  lr: 2.133160e-03  eta: 0:32:18  time: 21.708677  data_time: 21.479036  memory: 1990  loss: 0.434001  loss_kpt: 0.434001  acc_pose: 0.298810
+2023/06/04 21:35:55 - mmengine - INFO - Saving checkpoint at 90 epochs
+2023/06/04 21:36:06 - mmengine - INFO - Epoch(val)  [90][1/6]    eta: 0:00:10  time: 1.819955  data_time: 1.782484  memory: 180  
+2023/06/04 21:36:08 - mmengine - INFO - Epoch(val)  [90][2/6]    eta: 0:00:08  time: 1.825306  data_time: 1.787787  memory: 180  
+2023/06/04 21:36:10 - mmengine - INFO - Epoch(val)  [90][3/6]    eta: 0:00:06  time: 1.819452  data_time: 1.782271  memory: 180  
+2023/06/04 21:36:12 - mmengine - INFO - Epoch(val)  [90][4/6]    eta: 0:00:04  time: 1.819972  data_time: 1.782807  memory: 180  
+2023/06/04 21:36:14 - mmengine - INFO - Epoch(val)  [90][5/6]    eta: 0:00:02  time: 1.821196  data_time: 1.784073  memory: 180  
+2023/06/04 21:36:15 - mmengine - INFO - Epoch(val)  [90][6/6]    eta: 0:00:00  time: 1.791331  data_time: 1.754352  memory: 128  
+2023/06/04 21:36:15 - mmengine - INFO - Evaluating CocoMetric...
+2023/06/04 21:36:15 - mmengine - INFO - Evaluating PCKAccuracy (normalized by ``"bbox_size"``)...
+2023/06/04 21:36:15 - mmengine - INFO - Evaluating AUC...
+2023/06/04 21:36:15 - mmengine - INFO - Evaluating NME...
+2023/06/04 21:36:15 - mmengine - INFO - Epoch(val) [90][6/6]    coco/AP: 0.003021  coco/AP .5: 0.029181  coco/AP .75: 0.000000  coco/AP (M): -1.000000  coco/AP (L): 0.003021  coco/AR: 0.011905  coco/AR .5: 0.095238  coco/AR .75: 0.000000  coco/AR (M): -1.000000  coco/AR (L): 0.011905  PCK: 0.359410  AUC: 0.009807  NME: 0.198189  data_time: 1.602845  time: 1.638177
+2023/06/04 21:36:15 - mmengine - INFO - The previous best checkpoint /hy-tmp/mmpose/work_dirs/rtmpose-s-ear/best_PCK_epoch_80.pth is removed
+2023/06/04 21:36:23 - mmengine - INFO - The best checkpoint with 0.3594 PCK at 90 epoch is saved to best_PCK_epoch_90.pth.
+2023/06/04 21:36:48 - mmengine - INFO - Epoch(train)  [91][1/3]  lr: 2.100000e-03  eta: 0:31:58  time: 21.662907  data_time: 21.433251  memory: 3019  loss: 0.433762  loss_kpt: 0.433762  acc_pose: 0.279171
+2023/06/04 21:37:14 - mmengine - INFO - Epoch(train)  [91][2/3]  lr: 2.066840e-03  eta: 0:31:37  time: 21.843177  data_time: 21.611909  memory: 3019  loss: 0.436827  loss_kpt: 0.436827  acc_pose: 0.341140
+2023/06/04 21:37:28 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:37:28 - mmengine - INFO - Epoch(train)  [91][3/3]  lr: 2.033691e-03  eta: 0:31:14  time: 21.641271  data_time: 21.411582  memory: 1990  loss: 0.432634  loss_kpt: 0.432634  acc_pose: 0.311905
+2023/06/04 21:37:53 - mmengine - INFO - Epoch(train)  [92][1/3]  lr: 2.000562e-03  eta: 0:30:53  time: 21.626549  data_time: 21.397039  memory: 3019  loss: 0.431892  loss_kpt: 0.431892  acc_pose: 0.323968
+2023/06/04 21:38:19 - mmengine - INFO - Epoch(train)  [92][2/3]  lr: 1.967463e-03  eta: 0:30:33  time: 21.829269  data_time: 21.598307  memory: 3019  loss: 0.435616  loss_kpt: 0.435616  acc_pose: 0.324405
+2023/06/04 21:38:34 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:38:34 - mmengine - INFO - Epoch(train)  [92][3/3]  lr: 1.934404e-03  eta: 0:30:09  time: 21.635192  data_time: 21.406111  memory: 1990  loss: 0.431559  loss_kpt: 0.431559  acc_pose: 0.373810
+2023/06/04 21:38:58 - mmengine - INFO - Epoch(train)  [93][1/3]  lr: 1.901396e-03  eta: 0:29:48  time: 21.559031  data_time: 21.330006  memory: 3019  loss: 0.430657  loss_kpt: 0.430657  acc_pose: 0.335884
+2023/06/04 21:39:21 - mmengine - INFO - Epoch(train)  [93][2/3]  lr: 1.868448e-03  eta: 0:29:27  time: 21.724989  data_time: 21.494177  memory: 3019  loss: 0.434088  loss_kpt: 0.434088  acc_pose: 0.350446
+2023/06/04 21:39:37 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:39:37 - mmengine - INFO - Epoch(train)  [93][3/3]  lr: 1.835571e-03  eta: 0:29:04  time: 21.543275  data_time: 21.314085  memory: 1990  loss: 0.429608  loss_kpt: 0.429608  acc_pose: 0.342033
+2023/06/04 21:40:01 - mmengine - INFO - Epoch(train)  [94][1/3]  lr: 1.802775e-03  eta: 0:28:43  time: 21.535891  data_time: 21.306696  memory: 3019  loss: 0.429197  loss_kpt: 0.429197  acc_pose: 0.340774
+2023/06/04 21:40:24 - mmengine - INFO - Epoch(train)  [94][2/3]  lr: 1.770068e-03  eta: 0:28:22  time: 21.700973  data_time: 21.470048  memory: 3019  loss: 0.432340  loss_kpt: 0.432340  acc_pose: 0.305225
+2023/06/04 21:40:38 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:40:38 - mmengine - INFO - Epoch(train)  [94][3/3]  lr: 1.737463e-03  eta: 0:27:59  time: 21.476609  data_time: 21.247325  memory: 1990  loss: 0.428031  loss_kpt: 0.428031  acc_pose: 0.351587
+2023/06/04 21:41:03 - mmengine - INFO - Epoch(train)  [95][1/3]  lr: 1.704968e-03  eta: 0:27:38  time: 21.505667  data_time: 21.276432  memory: 3019  loss: 0.427538  loss_kpt: 0.427538  acc_pose: 0.340325
+2023/06/04 21:41:28 - mmengine - INFO - Epoch(train)  [95][2/3]  lr: 1.672593e-03  eta: 0:27:17  time: 21.682391  data_time: 21.451616  memory: 3019  loss: 0.430600  loss_kpt: 0.430600  acc_pose: 0.342262
+2023/06/04 21:41:41 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:41:41 - mmengine - INFO - Epoch(train)  [95][3/3]  lr: 1.640348e-03  eta: 0:26:54  time: 21.451004  data_time: 21.221902  memory: 1990  loss: 0.426513  loss_kpt: 0.426513  acc_pose: 0.312302
+2023/06/04 21:42:06 - mmengine - INFO - Epoch(train)  [96][1/3]  lr: 1.608244e-03  eta: 0:26:33  time: 21.469315  data_time: 21.240178  memory: 3019  loss: 0.425818  loss_kpt: 0.425818  acc_pose: 0.365327
+2023/06/04 21:42:31 - mmengine - INFO - Epoch(train)  [96][2/3]  lr: 1.576289e-03  eta: 0:26:12  time: 21.643797  data_time: 21.413145  memory: 3019  loss: 0.428863  loss_kpt: 0.428863  acc_pose: 0.337290
+2023/06/04 21:42:47 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:42:47 - mmengine - INFO - Epoch(train)  [96][3/3]  lr: 1.544494e-03  eta: 0:25:49  time: 21.465022  data_time: 21.235855  memory: 1990  loss: 0.424761  loss_kpt: 0.424761  acc_pose: 0.361905
+2023/06/04 21:43:12 - mmengine - INFO - Epoch(train)  [97][1/3]  lr: 1.512868e-03  eta: 0:25:29  time: 21.466753  data_time: 21.237576  memory: 3019  loss: 0.424108  loss_kpt: 0.424108  acc_pose: 0.336310
+2023/06/04 21:43:38 - mmengine - INFO - Epoch(train)  [97][2/3]  lr: 1.481421e-03  eta: 0:25:08  time: 21.691023  data_time: 21.460158  memory: 3019  loss: 0.427158  loss_kpt: 0.427158  acc_pose: 0.349195
+2023/06/04 21:43:54 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:43:54 - mmengine - INFO - Epoch(train)  [97][3/3]  lr: 1.450162e-03  eta: 0:24:45  time: 21.484335  data_time: 21.255084  memory: 1990  loss: 0.422921  loss_kpt: 0.422921  acc_pose: 0.369048
+2023/06/04 21:44:18 - mmengine - INFO - Epoch(train)  [98][1/3]  lr: 1.419101e-03  eta: 0:24:24  time: 21.489129  data_time: 21.260027  memory: 3019  loss: 0.421810  loss_kpt: 0.421810  acc_pose: 0.351013
+2023/06/04 21:44:42 - mmengine - INFO - Epoch(train)  [98][2/3]  lr: 1.388247e-03  eta: 0:24:03  time: 21.653542  data_time: 21.422932  memory: 3019  loss: 0.425005  loss_kpt: 0.425005  acc_pose: 0.346195
+2023/06/04 21:44:58 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:44:58 - mmengine - INFO - Epoch(train)  [98][3/3]  lr: 1.357611e-03  eta: 0:23:41  time: 21.502274  data_time: 21.273402  memory: 1990  loss: 0.420989  loss_kpt: 0.420989  acc_pose: 0.333333
+2023/06/04 21:45:24 - mmengine - INFO - Epoch(train)  [99][1/3]  lr: 1.327200e-03  eta: 0:23:20  time: 21.512172  data_time: 21.283294  memory: 3019  loss: 0.419967  loss_kpt: 0.419967  acc_pose: 0.376098
+2023/06/04 21:45:48 - mmengine - INFO - Epoch(train)  [99][2/3]  lr: 1.297025e-03  eta: 0:22:59  time: 21.677298  data_time: 21.446806  memory: 3019  loss: 0.423293  loss_kpt: 0.423293  acc_pose: 0.302827
+2023/06/04 21:46:02 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:46:02 - mmengine - INFO - Epoch(train)  [99][3/3]  lr: 1.267095e-03  eta: 0:22:36  time: 21.471621  data_time: 21.242777  memory: 1990  loss: 0.419307  loss_kpt: 0.419307  acc_pose: 0.366850
+2023/06/04 21:46:28 - mmengine - INFO - Epoch(train) [100][1/3]  lr: 1.237418e-03  eta: 0:22:15  time: 21.554729  data_time: 21.325942  memory: 3019  loss: 0.418690  loss_kpt: 0.418690  acc_pose: 0.354167
+2023/06/04 21:46:54 - mmengine - INFO - Epoch(train) [100][2/3]  lr: 1.208004e-03  eta: 0:21:55  time: 21.738237  data_time: 21.507860  memory: 3019  loss: 0.422074  loss_kpt: 0.422074  acc_pose: 0.318039
+2023/06/04 21:47:08 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:47:08 - mmengine - INFO - Epoch(train) [100][3/3]  lr: 1.178862e-03  eta: 0:21:32  time: 21.540387  data_time: 21.311624  memory: 1990  loss: 0.417968  loss_kpt: 0.417968  acc_pose: 0.327381
+2023/06/04 21:47:08 - mmengine - INFO - Saving checkpoint at 100 epochs
+2023/06/04 21:47:19 - mmengine - INFO - Epoch(val) [100][1/6]    eta: 0:00:10  time: 1.792749  data_time: 1.755778  memory: 180  
+2023/06/04 21:47:21 - mmengine - INFO - Epoch(val) [100][2/6]    eta: 0:00:08  time: 1.822529  data_time: 1.785561  memory: 180  
+2023/06/04 21:47:23 - mmengine - INFO - Epoch(val) [100][3/6]    eta: 0:00:06  time: 1.819877  data_time: 1.782890  memory: 180  
+2023/06/04 21:47:25 - mmengine - INFO - Epoch(val) [100][4/6]    eta: 0:00:04  time: 1.819993  data_time: 1.782998  memory: 180  
+2023/06/04 21:47:27 - mmengine - INFO - Epoch(val) [100][5/6]    eta: 0:00:02  time: 1.821179  data_time: 1.784151  memory: 180  
+2023/06/04 21:47:27 - mmengine - INFO - Epoch(val) [100][6/6]    eta: 0:00:00  time: 1.791260  data_time: 1.754379  memory: 128  
+2023/06/04 21:47:27 - mmengine - INFO - Evaluating CocoMetric...
+2023/06/04 21:47:27 - mmengine - INFO - Evaluating PCKAccuracy (normalized by ``"bbox_size"``)...
+2023/06/04 21:47:27 - mmengine - INFO - Evaluating AUC...
+2023/06/04 21:47:27 - mmengine - INFO - Evaluating NME...
+2023/06/04 21:47:27 - mmengine - INFO - Epoch(val) [100][6/6]    coco/AP: 0.002492  coco/AP .5: 0.010066  coco/AP .75: 0.000000  coco/AP (M): -1.000000  coco/AP (L): 0.002492  coco/AR: 0.009524  coco/AR .5: 0.047619  coco/AR .75: 0.000000  coco/AR (M): -1.000000  coco/AR (L): 0.009524  PCK: 0.345805  AUC: 0.007086  NME: 0.185633  data_time: 1.588112  time: 1.623595
+2023/06/04 21:47:53 - mmengine - INFO - Epoch(train) [101][1/3]  lr: 1.150000e-03  eta: 0:21:11  time: 21.531167  data_time: 21.302568  memory: 3019  loss: 0.416042  loss_kpt: 0.416042  acc_pose: 0.347104
+2023/06/04 21:48:18 - mmengine - INFO - Epoch(train) [101][2/3]  lr: 1.121428e-03  eta: 0:20:50  time: 21.745382  data_time: 21.515175  memory: 3019  loss: 0.419056  loss_kpt: 0.419056  acc_pose: 0.363284
+2023/06/04 21:48:33 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:48:33 - mmengine - INFO - Epoch(train) [101][3/3]  lr: 1.093153e-03  eta: 0:20:27  time: 21.540943  data_time: 21.312369  memory: 1990  loss: 0.414560  loss_kpt: 0.414560  acc_pose: 0.414286
+2023/06/04 21:48:58 - mmengine - INFO - Epoch(train) [102][1/3]  lr: 1.065186e-03  eta: 0:20:06  time: 21.531333  data_time: 21.302719  memory: 3019  loss: 0.413955  loss_kpt: 0.413955  acc_pose: 0.345238
+2023/06/04 21:49:23 - mmengine - INFO - Epoch(train) [102][2/3]  lr: 1.037533e-03  eta: 0:19:45  time: 21.731799  data_time: 21.501651  memory: 3019  loss: 0.416911  loss_kpt: 0.416911  acc_pose: 0.377976
+2023/06/04 21:49:38 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:49:38 - mmengine - INFO - Epoch(train) [102][3/3]  lr: 1.010205e-03  eta: 0:19:23  time: 21.525587  data_time: 21.296997  memory: 1990  loss: 0.413086  loss_kpt: 0.413086  acc_pose: 0.361264
+2023/06/04 21:50:05 - mmengine - INFO - Epoch(train) [103][1/3]  lr: 9.832080e-04  eta: 0:19:02  time: 21.544380  data_time: 21.315833  memory: 3019  loss: 0.412546  loss_kpt: 0.412546  acc_pose: 0.354911
+2023/06/04 21:50:31 - mmengine - INFO - Epoch(train) [103][2/3]  lr: 9.565515e-04  eta: 0:18:41  time: 21.766538  data_time: 21.536334  memory: 3019  loss: 0.415599  loss_kpt: 0.415599  acc_pose: 0.349702
+2023/06/04 21:50:47 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:50:47 - mmengine - INFO - Epoch(train) [103][3/3]  lr: 9.302432e-04  eta: 0:18:19  time: 21.568473  data_time: 21.339664  memory: 1990  loss: 0.411970  loss_kpt: 0.411970  acc_pose: 0.354212
+2023/06/04 21:51:12 - mmengine - INFO - Epoch(train) [104][1/3]  lr: 9.042913e-04  eta: 0:17:58  time: 21.592701  data_time: 21.363714  memory: 3019  loss: 0.410753  loss_kpt: 0.410753  acc_pose: 0.371599
+2023/06/04 21:51:36 - mmengine - INFO - Epoch(train) [104][2/3]  lr: 8.787035e-04  eta: 0:17:37  time: 21.780253  data_time: 21.549602  memory: 3019  loss: 0.413569  loss_kpt: 0.413569  acc_pose: 0.386905
+2023/06/04 21:51:52 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:51:52 - mmengine - INFO - Epoch(train) [104][3/3]  lr: 8.534878e-04  eta: 0:17:14  time: 21.592058  data_time: 21.362955  memory: 1990  loss: 0.409813  loss_kpt: 0.409813  acc_pose: 0.303571
+2023/06/04 21:52:17 - mmengine - INFO - Epoch(train) [105][1/3]  lr: 8.286518e-04  eta: 0:16:53  time: 21.592551  data_time: 21.363450  memory: 3019  loss: 0.409352  loss_kpt: 0.409352  acc_pose: 0.344789
+2023/06/04 21:52:41 - mmengine - INFO - Epoch(train) [105][2/3]  lr: 8.042031e-04  eta: 0:16:32  time: 21.754622  data_time: 21.523995  memory: 3019  loss: 0.412563  loss_kpt: 0.412563  acc_pose: 0.363839
+2023/06/04 21:52:56 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:52:56 - mmengine - INFO - Epoch(train) [105][3/3]  lr: 7.801491e-04  eta: 0:16:09  time: 21.565913  data_time: 21.336902  memory: 1990  loss: 0.408314  loss_kpt: 0.408314  acc_pose: 0.446429
+2023/06/04 21:53:21 - mmengine - INFO - Epoch(train) [106][1/3]  lr: 7.564971e-04  eta: 0:15:48  time: 21.588168  data_time: 21.359189  memory: 3019  loss: 0.407739  loss_kpt: 0.407739  acc_pose: 0.373512
+2023/06/04 21:53:46 - mmengine - INFO - Epoch(train) [106][2/3]  lr: 7.332544e-04  eta: 0:15:27  time: 21.783628  data_time: 21.553039  memory: 3019  loss: 0.410536  loss_kpt: 0.410536  acc_pose: 0.412946
+2023/06/04 21:54:01 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:54:01 - mmengine - INFO - Epoch(train) [106][3/3]  lr: 7.104280e-04  eta: 0:15:05  time: 21.569801  data_time: 21.340787  memory: 1990  loss: 0.406020  loss_kpt: 0.406020  acc_pose: 0.435653
+2023/06/04 21:54:27 - mmengine - INFO - Epoch(train) [107][1/3]  lr: 6.880248e-04  eta: 0:14:44  time: 21.617541  data_time: 21.388478  memory: 3019  loss: 0.405475  loss_kpt: 0.405475  acc_pose: 0.385417
+2023/06/04 21:54:53 - mmengine - INFO - Epoch(train) [107][2/3]  lr: 6.660518e-04  eta: 0:14:23  time: 21.797129  data_time: 21.566585  memory: 3019  loss: 0.408600  loss_kpt: 0.408600  acc_pose: 0.407738
+2023/06/04 21:55:08 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:55:08 - mmengine - INFO - Epoch(train) [107][3/3]  lr: 6.445156e-04  eta: 0:14:00  time: 21.602416  data_time: 21.373647  memory: 1990  loss: 0.404338  loss_kpt: 0.404338  acc_pose: 0.392907
+2023/06/04 21:55:32 - mmengine - INFO - Epoch(train) [108][1/3]  lr: 6.234227e-04  eta: 0:13:39  time: 21.575618  data_time: 21.346866  memory: 3019  loss: 0.403458  loss_kpt: 0.403458  acc_pose: 0.438988
+2023/06/04 21:55:56 - mmengine - INFO - Epoch(train) [108][2/3]  lr: 6.027796e-04  eta: 0:13:18  time: 21.772630  data_time: 21.542301  memory: 3019  loss: 0.406489  loss_kpt: 0.406489  acc_pose: 0.378720
+2023/06/04 21:56:12 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:56:12 - mmengine - INFO - Epoch(train) [108][3/3]  lr: 5.825925e-04  eta: 0:12:56  time: 21.585552  data_time: 21.356955  memory: 1990  loss: 0.402534  loss_kpt: 0.402534  acc_pose: 0.383791
+2023/06/04 21:56:39 - mmengine - INFO - Epoch(train) [109][1/3]  lr: 5.628677e-04  eta: 0:12:35  time: 21.605945  data_time: 21.377400  memory: 3019  loss: 0.401767  loss_kpt: 0.401767  acc_pose: 0.372366
+2023/06/04 21:57:04 - mmengine - INFO - Epoch(train) [109][2/3]  lr: 5.436111e-04  eta: 0:12:13  time: 21.817579  data_time: 21.587447  memory: 3019  loss: 0.404829  loss_kpt: 0.404829  acc_pose: 0.389881
+2023/06/04 21:57:20 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:57:20 - mmengine - INFO - Epoch(train) [109][3/3]  lr: 5.248286e-04  eta: 0:11:51  time: 21.666909  data_time: 21.438412  memory: 1990  loss: 0.400955  loss_kpt: 0.400955  acc_pose: 0.358333
+2023/06/04 21:57:46 - mmengine - INFO - Epoch(train) [110][1/3]  lr: 5.065259e-04  eta: 0:11:30  time: 21.709764  data_time: 21.481478  memory: 3019  loss: 0.400353  loss_kpt: 0.400353  acc_pose: 0.375744
+2023/06/04 21:58:10 - mmengine - INFO - Epoch(train) [110][2/3]  lr: 4.887086e-04  eta: 0:11:09  time: 21.880903  data_time: 21.651145  memory: 3019  loss: 0.403241  loss_kpt: 0.403241  acc_pose: 0.389432
+2023/06/04 21:58:27 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 21:58:27 - mmengine - INFO - Epoch(train) [110][3/3]  lr: 4.713821e-04  eta: 0:10:47  time: 21.728410  data_time: 21.500150  memory: 1990  loss: 0.399465  loss_kpt: 0.399465  acc_pose: 0.416667
+2023/06/04 21:58:27 - mmengine - INFO - Saving checkpoint at 110 epochs
+2023/06/04 21:58:37 - mmengine - INFO - Epoch(val) [110][1/6]    eta: 0:00:10  time: 1.793239  data_time: 1.756305  memory: 180  
+2023/06/04 21:58:39 - mmengine - INFO - Epoch(val) [110][2/6]    eta: 0:00:08  time: 1.822985  data_time: 1.785982  memory: 180  
+2023/06/04 21:58:41 - mmengine - INFO - Epoch(val) [110][3/6]    eta: 0:00:06  time: 1.820062  data_time: 1.783071  memory: 180  
+2023/06/04 21:58:43 - mmengine - INFO - Epoch(val) [110][4/6]    eta: 0:00:04  time: 1.820143  data_time: 1.783115  memory: 180  
+2023/06/04 21:58:46 - mmengine - INFO - Epoch(val) [110][5/6]    eta: 0:00:02  time: 1.821159  data_time: 1.784133  memory: 180  
+2023/06/04 21:58:46 - mmengine - INFO - Epoch(val) [110][6/6]    eta: 0:00:00  time: 1.791173  data_time: 1.754276  memory: 128  
+2023/06/04 21:58:46 - mmengine - INFO - Evaluating CocoMetric...
+2023/06/04 21:58:46 - mmengine - INFO - Evaluating PCKAccuracy (normalized by ``"bbox_size"``)...
+2023/06/04 21:58:46 - mmengine - INFO - Evaluating AUC...
+2023/06/04 21:58:46 - mmengine - INFO - Evaluating NME...
+2023/06/04 21:58:46 - mmengine - INFO - Epoch(val) [110][6/6]    coco/AP: 0.016242  coco/AP .5: 0.132713  coco/AP .75: 0.000000  coco/AP (M): -1.000000  coco/AP (L): 0.016242  coco/AR: 0.026190  coco/AR .5: 0.214286  coco/AR .75: 0.000000  coco/AR (M): -1.000000  coco/AR (L): 0.026190  PCK: 0.439909  AUC: 0.012472  NME: 0.165677  data_time: 1.589012  time: 1.624592
+2023/06/04 21:58:46 - mmengine - INFO - The previous best checkpoint /hy-tmp/mmpose/work_dirs/rtmpose-s-ear/best_PCK_epoch_90.pth is removed
+2023/06/04 21:58:55 - mmengine - INFO - The best checkpoint with 0.4399 PCK at 110 epoch is saved to best_PCK_epoch_110.pth.
+2023/06/04 21:59:19 - mmengine - INFO - Epoch(train) [111][1/3]  lr: 4.545517e-04  eta: 0:10:25  time: 21.744418  data_time: 21.516270  memory: 3019  loss: 0.398515  loss_kpt: 0.398515  acc_pose: 0.409970
+2023/06/04 21:59:44 - mmengine - INFO - Epoch(train) [111][2/3]  lr: 4.382226e-04  eta: 0:10:04  time: 21.963503  data_time: 21.733767  memory: 3019  loss: 0.401008  loss_kpt: 0.401008  acc_pose: 0.469955
+2023/06/04 22:00:00 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 22:00:00 - mmengine - INFO - Epoch(train) [111][3/3]  lr: 4.223996e-04  eta: 0:09:42  time: 21.789330  data_time: 21.561055  memory: 1990  loss: 0.397389  loss_kpt: 0.397389  acc_pose: 0.401190
+2023/06/04 22:00:26 - mmengine - INFO - Epoch(train) [112][1/3]  lr: 4.070876e-04  eta: 0:09:21  time: 21.811628  data_time: 21.583297  memory: 3019  loss: 0.397315  loss_kpt: 0.397315  acc_pose: 0.387897
+2023/06/04 22:00:47 - mmengine - INFO - Epoch(train) [112][2/3]  lr: 3.922913e-04  eta: 0:08:59  time: 21.972274  data_time: 21.742154  memory: 3019  loss: 0.399700  loss_kpt: 0.399700  acc_pose: 0.451271
+2023/06/04 22:01:02 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 22:01:02 - mmengine - INFO - Epoch(train) [112][3/3]  lr: 3.780152e-04  eta: 0:08:37  time: 21.757576  data_time: 21.529321  memory: 1990  loss: 0.396233  loss_kpt: 0.396233  acc_pose: 0.402381
+2023/06/04 22:01:27 - mmengine - INFO - Epoch(train) [113][1/3]  lr: 3.642636e-04  eta: 0:08:16  time: 21.759946  data_time: 21.531719  memory: 3019  loss: 0.395774  loss_kpt: 0.395774  acc_pose: 0.378271
+2023/06/04 22:01:51 - mmengine - INFO - Epoch(train) [113][2/3]  lr: 3.510408e-04  eta: 0:07:54  time: 21.944131  data_time: 21.714435  memory: 3019  loss: 0.398593  loss_kpt: 0.398593  acc_pose: 0.392113
+2023/06/04 22:02:06 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 22:02:06 - mmengine - INFO - Epoch(train) [113][3/3]  lr: 3.383507e-04  eta: 0:07:32  time: 21.734601  data_time: 21.506490  memory: 1990  loss: 0.394671  loss_kpt: 0.394671  acc_pose: 0.406410
+2023/06/04 22:02:32 - mmengine - INFO - Epoch(train) [114][1/3]  lr: 3.261972e-04  eta: 0:07:11  time: 21.738663  data_time: 21.510628  memory: 3019  loss: 0.394291  loss_kpt: 0.394291  acc_pose: 0.403274
+2023/06/04 22:02:56 - mmengine - INFO - Epoch(train) [114][2/3]  lr: 3.145840e-04  eta: 0:06:50  time: 21.887049  data_time: 21.657486  memory: 3019  loss: 0.397316  loss_kpt: 0.397316  acc_pose: 0.401384
+2023/06/04 22:03:11 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 22:03:11 - mmengine - INFO - Epoch(train) [114][3/3]  lr: 3.035147e-04  eta: 0:06:28  time: 21.713038  data_time: 21.485071  memory: 1990  loss: 0.393502  loss_kpt: 0.393502  acc_pose: 0.423810
+2023/06/04 22:03:34 - mmengine - INFO - Epoch(train) [115][1/3]  lr: 2.929926e-04  eta: 0:06:06  time: 21.699479  data_time: 21.471391  memory: 3019  loss: 0.392735  loss_kpt: 0.392735  acc_pose: 0.456101
+2023/06/04 22:03:57 - mmengine - INFO - Epoch(train) [115][2/3]  lr: 2.830210e-04  eta: 0:05:45  time: 21.849430  data_time: 21.619711  memory: 3019  loss: 0.395491  loss_kpt: 0.395491  acc_pose: 0.415580
+2023/06/04 22:04:12 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 22:04:12 - mmengine - INFO - Epoch(train) [115][3/3]  lr: 2.736028e-04  eta: 0:05:23  time: 21.618386  data_time: 21.390138  memory: 1990  loss: 0.392252  loss_kpt: 0.392252  acc_pose: 0.398810
+2023/06/04 22:04:36 - mmengine - INFO - Epoch(train) [116][1/3]  lr: 2.647409e-04  eta: 0:05:01  time: 21.629208  data_time: 21.400961  memory: 3019  loss: 0.391571  loss_kpt: 0.391571  acc_pose: 0.398455
+2023/06/04 22:05:02 - mmengine - INFO - Epoch(train) [116][2/3]  lr: 2.564381e-04  eta: 0:04:40  time: 21.854153  data_time: 21.624271  memory: 3019  loss: 0.394760  loss_kpt: 0.394760  acc_pose: 0.418155
+2023/06/04 22:05:17 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 22:05:17 - mmengine - INFO - Epoch(train) [116][3/3]  lr: 2.486969e-04  eta: 0:04:18  time: 21.626076  data_time: 21.397682  memory: 1990  loss: 0.390873  loss_kpt: 0.390873  acc_pose: 0.404762
+2023/06/04 22:05:43 - mmengine - INFO - Epoch(train) [117][1/3]  lr: 2.415196e-04  eta: 0:03:57  time: 21.645329  data_time: 21.416995  memory: 3019  loss: 0.389911  loss_kpt: 0.389911  acc_pose: 0.442319
+2023/06/04 22:06:08 - mmengine - INFO - Epoch(train) [117][2/3]  lr: 2.349084e-04  eta: 0:03:35  time: 21.850704  data_time: 21.620559  memory: 3019  loss: 0.392839  loss_kpt: 0.392839  acc_pose: 0.409970
+2023/06/04 22:06:23 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 22:06:23 - mmengine - INFO - Epoch(train) [117][3/3]  lr: 2.288653e-04  eta: 0:03:14  time: 21.645675  data_time: 21.417234  memory: 1990  loss: 0.388927  loss_kpt: 0.388927  acc_pose: 0.410714
+2023/06/04 22:06:48 - mmengine - INFO - Epoch(train) [118][1/3]  lr: 2.233922e-04  eta: 0:02:52  time: 21.651523  data_time: 21.423107  memory: 3019  loss: 0.388547  loss_kpt: 0.388547  acc_pose: 0.404974
+2023/06/04 22:07:14 - mmengine - INFO - Epoch(train) [118][2/3]  lr: 2.184907e-04  eta: 0:02:31  time: 21.872486  data_time: 21.642367  memory: 3019  loss: 0.392084  loss_kpt: 0.392084  acc_pose: 0.363591
+2023/06/04 22:07:30 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 22:07:30 - mmengine - INFO - Epoch(train) [118][3/3]  lr: 2.141623e-04  eta: 0:02:09  time: 21.687390  data_time: 21.458769  memory: 1990  loss: 0.388399  loss_kpt: 0.388399  acc_pose: 0.386905
+2023/06/04 22:07:55 - mmengine - INFO - Epoch(train) [119][1/3]  lr: 2.104084e-04  eta: 0:01:47  time: 21.668289  data_time: 21.439615  memory: 3019  loss: 0.388316  loss_kpt: 0.388316  acc_pose: 0.382003
+2023/06/04 22:08:20 - mmengine - INFO - Epoch(train) [119][2/3]  lr: 2.072301e-04  eta: 0:01:26  time: 21.879450  data_time: 21.649189  memory: 3019  loss: 0.391361  loss_kpt: 0.391361  acc_pose: 0.404207
+2023/06/04 22:08:35 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 22:08:35 - mmengine - INFO - Epoch(train) [119][3/3]  lr: 2.046283e-04  eta: 0:01:04  time: 21.645159  data_time: 21.416531  memory: 1990  loss: 0.387584  loss_kpt: 0.387584  acc_pose: 0.397924
+2023/06/04 22:08:59 - mmengine - INFO - Epoch(train) [120][1/3]  lr: 2.026039e-04  eta: 0:00:43  time: 21.612948  data_time: 21.384165  memory: 3019  loss: 0.387397  loss_kpt: 0.387397  acc_pose: 0.399554
+2023/06/04 22:09:23 - mmengine - INFO - Epoch(train) [120][2/3]  lr: 2.011574e-04  eta: 0:00:21  time: 21.762793  data_time: 21.532612  memory: 3019  loss: 0.390257  loss_kpt: 0.390257  acc_pose: 0.415037
+2023/06/04 22:09:37 - mmengine - INFO - Exp name: rtmpose-s-ear_20230604_195452
+2023/06/04 22:09:37 - mmengine - INFO - Epoch(train) [120][3/3]  lr: 2.002894e-04  eta: 0:00:00  time: 21.552755  data_time: 21.324204  memory: 1990  loss: 0.386747  loss_kpt: 0.386747  acc_pose: 0.420238
+2023/06/04 22:09:37 - mmengine - INFO - Saving checkpoint at 120 epochs
+2023/06/04 22:09:48 - mmengine - INFO - Epoch(val) [120][1/6]    eta: 0:00:10  time: 1.792775  data_time: 1.755916  memory: 180  
+2023/06/04 22:09:50 - mmengine - INFO - Epoch(val) [120][2/6]    eta: 0:00:08  time: 1.822849  data_time: 1.785848  memory: 180  
+2023/06/04 22:09:52 - mmengine - INFO - Epoch(val) [120][3/6]    eta: 0:00:06  time: 1.819330  data_time: 1.782399  memory: 180  
+2023/06/04 22:09:54 - mmengine - INFO - Epoch(val) [120][4/6]    eta: 0:00:04  time: 1.819236  data_time: 1.782433  memory: 180  
+2023/06/04 22:09:56 - mmengine - INFO - Epoch(val) [120][5/6]    eta: 0:00:02  time: 1.820384  data_time: 1.783599  memory: 180  
+2023/06/04 22:09:57 - mmengine - INFO - Epoch(val) [120][6/6]    eta: 0:00:00  time: 1.790111  data_time: 1.753523  memory: 128  
+2023/06/04 22:09:57 - mmengine - INFO - Evaluating CocoMetric...
+2023/06/04 22:09:57 - mmengine - INFO - Evaluating PCKAccuracy (normalized by ``"bbox_size"``)...
+2023/06/04 22:09:57 - mmengine - INFO - Evaluating AUC...
+2023/06/04 22:09:57 - mmengine - INFO - Evaluating NME...
+2023/06/04 22:09:57 - mmengine - INFO - Epoch(val) [120][6/6]    coco/AP: 0.016940  coco/AP .5: 0.109640  coco/AP .75: 0.000000  coco/AP (M): -1.000000  coco/AP (L): 0.016940  coco/AR: 0.038095  coco/AR .5: 0.238095  coco/AR .75: 0.000000  coco/AR (M): -1.000000  coco/AR (L): 0.038095  PCK: 0.471655  AUC: 0.012982  NME: 0.165593  data_time: 1.595373  time: 1.630203
+2023/06/04 22:09:57 - mmengine - INFO - The previous best checkpoint /hy-tmp/mmpose/work_dirs/rtmpose-s-ear/best_PCK_epoch_110.pth is removed
+2023/06/04 22:10:05 - mmengine - INFO - The best checkpoint with 0.4717 PCK at 120 epoch is saved to best_PCK_epoch_120.pth.
